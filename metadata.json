@@ -1,0 +1,8 @@
+{
+  "name": "CartNova - Modern E-Commerce Platform",
+  "description": "Modern responsive digital marketplace with 24/7 customer support center, live concierge chat, personalized recommendations, recently viewed browsing history, bundles, multi-role views, and 1-tap checkout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
