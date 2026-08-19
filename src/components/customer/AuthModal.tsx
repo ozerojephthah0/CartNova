@@ -14,8 +14,12 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  AtSign,
+  Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -40,9 +44,11 @@ export const AuthModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Custom Gmail input state
   const [showGoogleAccountPicker, setShowGoogleAccountPicker] = useState(false);
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('ozerojephthah0@gmail.com');
-  const [customGoogleName, setCustomGoogleName] = useState('Jephthah Ozero');
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+  const [customGoogleName, setCustomGoogleName] = useState('');
 
   if (!isAuthModalOpen) return null;
 
@@ -67,13 +73,12 @@ export const AuthModal: React.FC = () => {
     e.preventDefault();
     setErrorMsg('');
     if (!email) {
-      setErrorMsg('Please enter your email address');
+      setErrorMsg('Please enter your email or Gmail address');
       return;
     }
     setIsLoading(true);
     try {
       await loginWithEmail(email, password);
-      // Success handled in context
     } catch (err: any) {
       setErrorMsg(err?.message || 'Login failed. Please verify your details.');
     } finally {
@@ -89,7 +94,7 @@ export const AuthModal: React.FC = () => {
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setErrorMsg('Please provide a valid email address');
+      setErrorMsg('Please provide a valid email or Gmail address');
       return;
     }
     if (password.length < 6) {
@@ -115,28 +120,51 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleGoogleContinue = async (selectedEmail?: string, selectedName?: string) => {
+  const handleGoogleContinue = async (explicitEmail?: string, explicitName?: string) => {
     setErrorMsg('');
     setGoogleLoading(true);
     try {
-      const emailToUse = selectedEmail || customGoogleEmail || 'ozerojephthah0@gmail.com';
-      const nameToUse = selectedName || customGoogleName || (emailToUse.includes('@') ? emailToUse.split('@')[0] : 'Google User');
-      
-      // Simulate Google identity validation
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      await loginWithGoogle({
-        email: emailToUse,
-        name: nameToUse,
-        avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
-      });
+      // If user typed or selected their own Gmail explicitly
+      if (explicitEmail && explicitEmail.trim()) {
+        const cleanEmail = explicitEmail.trim().toLowerCase();
+        const cleanName = explicitName?.trim() || cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+        await loginWithGoogle({
+          email: cleanEmail,
+          name: cleanName,
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
+        });
+        return;
+      }
+
+      // Try Firebase Auth Google Provider popup
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        if (user && user.email) {
+          await loginWithGoogle({
+            email: user.email,
+            name: user.displayName || user.email.split('@')[0],
+            avatar: user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.displayName || user.email)}`,
+          });
+          return;
+        }
+      } catch (popupErr: any) {
+        console.warn('Firebase Google Auth fallback triggered:', popupErr?.code || popupErr);
+        // If popup is blocked by iframe or browser policies, show direct Gmail form
+        setShowGoogleAccountPicker(true);
+        setErrorMsg('Enter your Gmail address below to sign in with your account.');
+      }
     } catch (err: any) {
-      setErrorMsg('Google authentication failed. Please try again.');
+      setShowGoogleAccountPicker(true);
+      setErrorMsg(err?.message || 'Please enter your Gmail address below to sign in.');
     } finally {
       setGoogleLoading(false);
     }
   };
 
-  // Predefined customer demo accounts for testing
+  // Predefined customer demo accounts for quick testing
   const customerDemoAccounts = allUsers.filter((u) => u.role === 'customer');
 
   return (
@@ -147,15 +175,17 @@ export const AuthModal: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           onClick={closeAuthModal}
-          className="fixed inset-0 bg-slate-950/65 backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
         />
 
         {/* Modal Window */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 12 }}
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
+          exit={{ opacity: 0, scale: 0.94, y: 16 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 350 }}
           id="auth-modal-dialog"
           className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-10"
         >
@@ -172,15 +202,15 @@ export const AuthModal: React.FC = () => {
 
             <div className="flex items-center gap-1.5 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1.5">
               <ShieldCheck className="w-4 h-4" />
-              <span>CartNova Secure Customer Access</span>
+              <span>CartNova Customer Access</span>
             </div>
 
             <h2 className="text-2xl font-black text-white tracking-tight">
-              {authModalMode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+              {authModalMode === 'login' ? 'Sign In with Your Account' : 'Create Customer Account'}
             </h2>
             <p className="text-xs text-slate-300 mt-1">
               {authModalMode === 'login'
-                ? 'Sign in to access your orders, saved wishlist, and fast checkout.'
+                ? 'Sign in with your own Gmail or email to track orders and save favorites.'
                 : 'Join CartNova to enjoy boutique shopping, fast delivery, and member rewards.'}
             </p>
 
@@ -229,8 +259,8 @@ export const AuthModal: React.FC = () => {
               </div>
             )}
 
-            {/* Google Authentication Button */}
-            <div>
+            {/* Google / Gmail Authentication Section */}
+            <div className="space-y-2">
               <button
                 id="google-continue-btn"
                 type="button"
@@ -263,65 +293,65 @@ export const AuthModal: React.FC = () => {
                 <span>Continue with Google</span>
               </button>
 
-              {/* Expand Google Account Selector / Quick Customization */}
-              <div className="mt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowGoogleAccountPicker(!showGoogleAccountPicker)}
-                  className="text-[11px] text-slate-500 hover:text-indigo-600 flex items-center justify-center gap-1 mx-auto font-medium cursor-pointer"
-                >
-                  <span>Use custom Google account</span>
-                  {showGoogleAccountPicker ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </button>
-
-                {showGoogleAccountPicker && (
-                  <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-left space-y-2 text-xs">
-                    <p className="text-slate-600 font-medium">Select or enter Google profile:</p>
-                    <div className="space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleGoogleContinue('ozerojephthah0@gmail.com', 'Jephthah Ozero')}
-                        className="w-full flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200 hover:border-indigo-400 text-left transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center">
-                            J
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 text-xs">Jephthah Ozero</p>
-                            <p className="text-[10px] text-slate-500">ozerojephthah0@gmail.com</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-indigo-600 font-bold">Sign In</span>
-                      </button>
-
-                      <div className="pt-1 flex gap-2">
-                        <input
-                          type="email"
-                          placeholder="your.email@gmail.com"
-                          value={customGoogleEmail}
-                          onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                          className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-hidden focus:border-indigo-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleGoogleContinue(customGoogleEmail, customGoogleName)}
-                          className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-lg text-xs hover:bg-indigo-700 cursor-pointer"
-                        >
-                          Connect
-                        </button>
-                      </div>
-                    </div>
+              {/* Enter Own Gmail Form */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <AtSign className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Sign in with any Gmail</span>
                   </div>
-                )}
+                  <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-md">
+                    Instant Access
+                  </span>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (customGoogleEmail.trim()) {
+                      handleGoogleContinue(customGoogleEmail, customGoogleName);
+                    }
+                  }}
+                  className="space-y-2"
+                >
+                  <div className="space-y-1">
+                    <input
+                      id="custom-gmail-input"
+                      type="email"
+                      required
+                      placeholder="Enter your Gmail (e.g. name@gmail.com)"
+                      value={customGoogleEmail}
+                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-indigo-600 focus:border-indigo-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      id="custom-name-input"
+                      type="text"
+                      placeholder="Your Name (Optional)"
+                      value={customGoogleName}
+                      onChange={(e) => setCustomGoogleName(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-indigo-600"
+                    />
+                    <button
+                      type="submit"
+                      disabled={googleLoading || !customGoogleEmail.trim()}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0"
+                    >
+                      {googleLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Sign In'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
 
             {/* Divider */}
-            <div className="relative flex items-center justify-center">
+            <div className="relative flex items-center justify-center my-2">
               <div className="border-t border-slate-200 w-full" />
-              <span className="bg-white px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Or with Email
+              <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Or with Standard Email
               </span>
               <div className="border-t border-slate-200 w-full" />
             </div>
@@ -337,7 +367,7 @@ export const AuthModal: React.FC = () => {
                       id="login-email-input"
                       type="email"
                       required
-                      placeholder="alex.morgan@example.com"
+                      placeholder="youremail@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-900 placeholder-slate-400 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-hidden transition-all"
@@ -423,7 +453,7 @@ export const AuthModal: React.FC = () => {
                       id="signup-name-input"
                       type="text"
                       required
-                      placeholder="Sarah Jenkins"
+                      placeholder="Your Full Name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-900 placeholder-slate-400 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-hidden transition-all"
@@ -432,14 +462,14 @@ export const AuthModal: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Email Address</label>
+                  <label className="text-xs font-bold text-slate-700 block">Email Address (Gmail supported)</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
                     <input
                       id="signup-email-input"
                       type="email"
                       required
-                      placeholder="sarah.jenkins@example.com"
+                      placeholder="your.email@gmail.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-900 placeholder-slate-400 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-hidden transition-all"
@@ -536,7 +566,7 @@ export const AuthModal: React.FC = () => {
             {/* Quick Demo Customer Profiles Picker */}
             <div className="pt-3 border-t border-slate-100">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                Quick One-Click Demo Customers
+                Quick Demo Accounts (1-Click Switch)
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {customerDemoAccounts.map((user) => (

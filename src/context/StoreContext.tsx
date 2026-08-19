@@ -911,9 +911,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }): Promise<{ success: boolean; message: string }> => {
-    const targetEmail = (googleAccount?.email || 'ozerojephthah0@gmail.com').toLowerCase();
-    const targetName = googleAccount?.name || 'Jephthah Ozero';
-    const targetAvatar = googleAccount?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+    const targetEmail = (googleAccount?.email || 'ozerojephthah0@gmail.com').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      addToast('error', 'Sign-In Failed', 'Please provide a valid Gmail or email address');
+      return { success: false, message: 'Invalid email address' };
+    }
+
+    const autoName = targetEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+    const targetName = googleAccount?.name?.trim() || autoName || 'Google User';
+    const targetAvatar = googleAccount?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(targetName)}`;
 
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === targetEmail);
     if (existingUser) {
@@ -940,12 +946,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       avatar: targetAvatar,
       authProvider: 'google',
       createdAt: new Date().toISOString(),
-      phone: '+234 803 987 6543',
+      phone: '+234 800 000 0000',
       address: {
-        street: '18 Adetokunbo Ademola Street',
-        city: 'Victoria Island',
+        street: 'Main Street',
+        city: 'Lagos',
         state: 'Lagos',
-        zip: '101241',
+        zip: '100001',
         country: 'Nigeria',
       },
     };
