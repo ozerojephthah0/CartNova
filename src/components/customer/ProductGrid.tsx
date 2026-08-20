@@ -22,6 +22,7 @@ import {
   Gamepad2,
   Watch,
   Smartphone,
+  Tablet,
   Footprints,
   ShoppingBag,
   Layers,
@@ -123,6 +124,10 @@ export const ProductGrid: React.FC = () => {
     switch (iconName) {
       case 'Smartphone':
         return <Smartphone className={className} />;
+      case 'Tablet':
+      case 'Tablets':
+      case 'Tablets & iPads':
+        return <Tablet className={className} />;
       case 'Footprints':
         return <Footprints className={className} />;
       case 'ShoppingBag':

@@ -57,11 +57,11 @@ export const CheckoutModal: React.FC = () => {
 
   // Form State
   const [shippingInfo, setShippingInfo] = useState({
-    fullName: currentUser.name !== 'Guest Customer' ? currentUser.name : 'Jephthah Ozero',
-    email: currentUser.email || 'customer@cartnova.com',
-    phone: currentUser.phone || '+234 802 345 6789',
+    fullName: currentUser.id !== 'guest' && currentUser.name ? currentUser.name : '',
+    email: currentUser.email || '',
+    phone: currentUser.phone || '+234 800 000 0000',
     street: currentUser.address?.street || '14 Admiralty Way, Lekki Phase 1',
-    city: currentUser.address?.city || 'Lekki / Lagos',
+    city: currentUser.address?.city || 'Lagos',
     state: currentUser.address?.state || 'Lagos State',
     zip: currentUser.address?.zip || '105102',
     country: currentUser.address?.country || 'Nigeria',
@@ -73,9 +73,9 @@ export const CheckoutModal: React.FC = () => {
   const applyAddressPreset = (type: 'home' | 'work') => {
     if (type === 'home') {
       setShippingInfo({
-        fullName: currentUser.name !== 'Guest Customer' ? currentUser.name : 'Jephthah Ozero',
+        fullName: currentUser.name || 'Customer Name',
         email: currentUser.email || 'customer@cartnova.com',
-        phone: '+234 802 345 6789',
+        phone: currentUser.phone || '+234 802 345 6789',
         street: '14 Admiralty Way, Lekki Phase 1',
         city: 'Lekki / Lagos',
         state: 'Lagos State',
@@ -85,9 +85,9 @@ export const CheckoutModal: React.FC = () => {
       addToast('info', 'Address Preset Applied', 'Loaded Home Residence (Lekki, Lagos)');
     } else {
       setShippingInfo({
-        fullName: currentUser.name !== 'Guest Customer' ? currentUser.name : 'Jephthah Ozero',
+        fullName: currentUser.name || 'Customer Name',
         email: currentUser.email || 'customer@cartnova.com',
-        phone: '+234 818 990 1234',
+        phone: currentUser.phone || '+234 818 990 1234',
         street: 'Floor 7, Landmark Tech Tower, Water Corporation Dr',
         city: 'Victoria Island',
         state: 'Lagos State',
@@ -104,9 +104,9 @@ export const CheckoutModal: React.FC = () => {
       setShippingInfo({
         fullName: currentUser.name || '',
         email: currentUser.email || '',
-        phone: currentUser.phone || '+234 802 345 6789',
+        phone: currentUser.phone || '+234 800 000 0000',
         street: currentUser.address?.street || '14 Admiralty Way, Lekki Phase 1',
-        city: currentUser.address?.city || 'Lekki / Lagos',
+        city: currentUser.address?.city || 'Lagos',
         state: currentUser.address?.state || 'Lagos State',
         zip: currentUser.address?.zip || '105102',
         country: currentUser.address?.country || 'Nigeria',
@@ -121,7 +121,7 @@ export const CheckoutModal: React.FC = () => {
   // Card form state
   const [cardInfo, setCardInfo] = useState({
     number: '5399 •••• •••• 4242',
-    name: currentUser.name !== 'Guest Customer' ? currentUser.name : 'Jephthah Ozero',
+    name: currentUser.name || 'Cardholder Name',
     expiry: '12/28',
     cvv: '921',
   });
@@ -129,7 +129,7 @@ export const CheckoutModal: React.FC = () => {
   const autofillDemoCard = () => {
     setCardInfo({
       number: '4111 2222 3333 4242',
-      name: shippingInfo.fullName || 'Jephthah Ozero',
+      name: shippingInfo.fullName || currentUser.name || 'Cardholder Name',
       expiry: '09/29',
       cvv: '884',
     });

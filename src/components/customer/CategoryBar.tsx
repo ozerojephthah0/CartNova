@@ -8,6 +8,7 @@ import {
   Gamepad2,
   Watch,
   Smartphone,
+  Tablet,
   Footprints,
   ShoppingBag,
   LayoutGrid,
@@ -26,6 +27,7 @@ import { motion, AnimatePresence } from 'motion/react';
 // Subcategory / tag recommendations per category
 const CATEGORY_TAG_SUGGESTIONS: Record<string, string[]> = {
   'Phones & Mobile': ['5G', 'Foldable', 'Flagship', 'AMOLED', 'Titanium', 'Charger'],
+  'Tablets & iPads': ['M4 Chip', 'OLED', 'Stylus', 'Keyboard', 'Paper-like', 'Productivity', 'Cellular'],
   'Boots & Footwear': ['Leather', 'Waterproof', 'Chelsea', 'Sneakers', 'Running', 'Handcrafted'],
   'Clothes & Fashion': ['Hoodie', 'Linen', 'Denim', 'Jacket', 'Silk', 'Streetwear'],
   'Bags & Luggage': ['Backpack', 'Commuter', 'Leather', 'Waterproof', 'Duffel', 'Sling'],
@@ -44,6 +46,10 @@ export const CategoryBar: React.FC = () => {
     switch (iconName) {
       case 'Smartphone':
         return <Smartphone className={className} />;
+      case 'Tablet':
+      case 'Tablets':
+      case 'Tablets & iPads':
+        return <Tablet className={className} />;
       case 'Footprints':
         return <Footprints className={className} />;
       case 'ShoppingBag':
@@ -89,25 +95,25 @@ export const CategoryBar: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+            <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
               <Layers className="w-4 h-4" />
             </span>
-            <h2 className="text-lg font-bold text-slate-900">Browse by Category</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Browse by Category</h2>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Filter through {categories.length} curated product categories with real-time stock
           </p>
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setViewStyle('pills')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewStyle === 'pills'
-                ? 'bg-white text-indigo-600 shadow-2xs font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Compact Category Bar"
           >
@@ -119,8 +125,8 @@ export const CategoryBar: React.FC = () => {
             onClick={() => setViewStyle('cards')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewStyle === 'cards'
-                ? 'bg-white text-indigo-600 shadow-2xs font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Visual Category Showcase"
           >
@@ -132,7 +138,7 @@ export const CategoryBar: React.FC = () => {
 
       {/* Pill Style Navigation */}
       {viewStyle === 'pills' && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
           {/* 'All Categories' Button */}
           <button
             id="category-pill-all"
@@ -140,14 +146,14 @@ export const CategoryBar: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs ${
               selectedCategory === 'all'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <LayoutGrid className="w-4 h-4" />
             <span>All Products</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
               {allCount}
@@ -167,14 +173,14 @@ export const CategoryBar: React.FC = () => {
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs ${
                   isSelected
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {getCategoryIcon(cat.iconName)}
                 <span>{cat.name}</span>
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   {count}
@@ -194,30 +200,30 @@ export const CategoryBar: React.FC = () => {
             className={`group relative overflow-hidden rounded-2xl p-4 cursor-pointer border transition-all duration-200 flex flex-col justify-between min-h-[130px] ${
               selectedCategory === 'all'
                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20 ring-2 ring-indigo-500/30'
-                : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm text-slate-800'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-sm text-slate-800 dark:text-slate-100'
             }`}
           >
             <div className="flex items-center justify-between">
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-600'
+                  selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
                 }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </div>
               <span
                 className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
                 {allCount} items
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm tracking-tight">All Catalog</h3>
+              <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">All Catalog</h3>
               <p
                 className={`text-[11px] mt-0.5 line-clamp-1 ${
-                  selectedCategory === 'all' ? 'text-indigo-100' : 'text-slate-500'
+                  selectedCategory === 'all' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 Entire boutique marketplace
@@ -238,7 +244,7 @@ export const CategoryBar: React.FC = () => {
                 className={`group relative overflow-hidden rounded-2xl p-4 cursor-pointer border transition-all duration-200 flex flex-col justify-between min-h-[130px] ${
                   isSelected
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20 ring-2 ring-indigo-500/30'
-                    : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm text-slate-800'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-sm text-slate-800 dark:text-slate-100'
                 }`}
               >
                 {/* Background Banner Preview (low opacity) */}
@@ -252,14 +258,14 @@ export const CategoryBar: React.FC = () => {
                 <div className="relative z-10 flex items-center justify-between">
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
+                      isSelected ? 'bg-white/20 text-white' : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/60'
                     }`}
                   >
                     {getCategoryIcon(cat.iconName, 'w-4 h-4')}
                   </div>
                   <span
                     className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     {count} items
@@ -267,10 +273,10 @@ export const CategoryBar: React.FC = () => {
                 </div>
 
                 <div className="relative z-10">
-                  <h3 className="font-bold text-sm tracking-tight">{cat.name}</h3>
+                  <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">{cat.name}</h3>
                   <p
                     className={`text-[11px] mt-0.5 line-clamp-1 ${
-                      isSelected ? 'text-indigo-100' : 'text-slate-500'
+                      isSelected ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     {cat.description || 'Explore products'}

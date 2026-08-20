@@ -18,6 +18,8 @@ import {
   SupportPriority,
   SupportStatus,
   FaqItem,
+  ThemeMode,
+  ThemeOption,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -29,6 +31,7 @@ import {
   INITIAL_NOTIFICATIONS,
   INITIAL_SUPPORT_TICKETS,
   INITIAL_FAQS,
+  THEME_OPTIONS,
 } from '../data/initialData';
 
 export type CurrencyCode = 'NGN' | 'USD' | 'EUR' | 'GBP';
@@ -217,6 +220,11 @@ interface StoreContextType {
   setCurrency: (code: CurrencyCode) => void;
   formatPrice: (amountInUSD: number) => string;
 
+  // Theme Engine
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  themeOptions: ThemeOption[];
+
   // Toasts
   toasts: ToastNotification[];
   addToast: (type: ToastNotification['type'], title: string, message: string) => void;
@@ -245,19 +253,22 @@ const STORAGE_KEYS = {
   CURRENCY: 'cartnova_currency_v2',
   SEARCH_HISTORY: 'cartnova_search_history_v2',
   RECENTLY_VIEWED: 'cartnova_recently_viewed_v2',
+  THEME: 'cartnova_theme_mode_v2',
 };
 
 const DEFAULT_POPULAR_SEARCHES = [
-  'AirPods Pro',
-  'MacBook M3',
+  'iPad Pro M4',
+  'iPhone 16 Pro',
+  'Galaxy Tab S10',
   'Chelsea Boots',
+  'Pixel 9 Fold',
+  'Surface Pro 11',
   'Mechanical Keyboard',
   'Noise Cancelling',
   'Leather Backpack',
-  'Titanium Watch',
+  'AirPods Pro',
   '4K Monitor',
-  'Denim Jacket',
-  'Gaming Mouse',
+  'Nothing Phone',
 ];
 
 export const GUEST_USER: UserProfile = {
@@ -341,6 +352,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return INITIAL_USERS[0];
     }
   });
+
+  // Theme Engine State
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.THEME) as ThemeMode;
+      if (saved && ['temu', 'light', 'dark', 'midnight', 'warm-sepia', 'cyberpunk'].includes(saved)) {
+        return saved;
+      }
+      return 'temu';
+    } catch {
+      return 'temu';
+    }
+  });
+
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode);
+    try {
+      localStorage.setItem(STORAGE_KEYS.THEME, mode);
+    } catch {}
+    document.documentElement.setAttribute('data-theme', mode);
+    if (mode === 'dark' || mode === 'midnight' || mode === 'cyberpunk') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    if (themeMode === 'dark' || themeMode === 'midnight' || themeMode === 'cyberpunk') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [themeMode]);
 
   // Auth modal state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -742,7 +788,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     category: 'all',
     brands: [],
     minPrice: 0,
-    maxPrice: 600000,
+    maxPrice: 5000000,
     minRating: 0,
     inStockOnly: false,
     onSaleOnly: false,
@@ -856,7 +902,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name: nameFromEmail || 'Customer',
       email: cleanEmail,
       role: 'customer',
-      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nameFromEmail || cleanEmail)}`,
       authProvider: 'email',
       createdAt: new Date().toISOString(),
       phone: '+234 800 000 0000',
@@ -882,10 +928,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existingUser) {
-      setCurrentUser(existingUser);
-      setActiveRole(existingUser.role);
+      const updatedExisting: UserProfile = {
+        ...existingUser,
+        name: cleanName || existingUser.name,
+      };
+      setAllUsers((prev) => prev.map((u) => (u.id === updatedExisting.id ? updatedExisting : u)));
+      setCurrentUser(updatedExisting);
+      setActiveRole(updatedExisting.role);
       setIsLoggedIn(true);
-      addToast('info', 'Account Exists', `Signed in as existing customer ${existingUser.name}`);
+      addToast('info', 'Account Exists', `Signed in as ${cleanName}`);
       closeAuthModal();
       return { success: true, message: 'Signed in with existing account' };
     }
@@ -895,7 +946,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name: cleanName,
       email: cleanEmail,
       role: 'customer',
-      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
       authProvider: 'email',
       createdAt: new Date().toISOString(),
       phone: '+234 800 123 4567',
@@ -911,7 +962,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }): Promise<{ success: boolean; message: string }> => {
-    const targetEmail = (googleAccount?.email || 'ozerojephthah0@gmail.com').trim().toLowerCase();
+    const targetEmail = (googleAccount?.email || '').trim().toLowerCase();
     if (!targetEmail || !targetEmail.includes('@')) {
       addToast('error', 'Sign-In Failed', 'Please provide a valid Gmail or email address');
       return { success: false, message: 'Invalid email address' };
@@ -925,7 +976,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (existingUser) {
       const updatedUser: UserProfile = {
         ...existingUser,
-        name: existingUser.name || targetName,
+        name: googleAccount?.name?.trim() || existingUser.name || targetName,
         avatar: existingUser.avatar || targetAvatar,
         authProvider: 'google',
       };
@@ -960,7 +1011,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(newGoogleUser);
     setActiveRole('customer');
     setIsLoggedIn(true);
-    addToast('success', 'Google Sign-In Successful', `Connected as ${targetEmail}`);
+    addToast('success', 'Google Sign-In Successful', `Connected as ${targetName}`);
     closeAuthModal();
     return { success: true, message: 'Google sign in successful' };
   };
@@ -973,8 +1024,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
-    setCurrentUser((prev) => ({ ...prev, ...updates }));
-    setAllUsers((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, ...updates } : u)));
+    const currentId = currentUser.id;
+    setCurrentUser((prev) => {
+      const updated = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setAllUsers((prev) => {
+      const updatedList = prev.map((u) => (u.id === currentId ? { ...u, ...updates } : u));
+      try {
+        localStorage.setItem(STORAGE_KEYS.ALL_USERS, JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
+    });
     addToast('success', 'Profile Updated', 'Your profile details have been saved successfully.');
   };
 
@@ -2056,6 +2120,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentCurrency,
         setCurrency,
         formatPrice,
+        themeMode,
+        setThemeMode,
+        themeOptions: THEME_OPTIONS,
         toasts,
         addToast,
         removeToast,

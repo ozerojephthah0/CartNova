@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { Star, ShoppingCart, Heart, Eye, Check } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Eye, Zap, Truck, Flame } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ProductCardProps {
@@ -20,16 +20,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
   } = useStore();
 
   const isFavorited = isInWishlist(product.id);
+  const soldCount = Math.max(120, (product.reviewCount || 10) * 8 + (product.stock % 50));
 
   if (viewMode === 'list') {
     return (
       <div
         id={`product-card-${product.id}`}
-        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row gap-4 items-center"
+        className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row gap-4 items-center"
       >
         <div
           onClick={() => viewProductDetail(product)}
-          className="relative w-full sm:w-44 h-40 rounded-xl overflow-hidden bg-slate-100 shrink-0 cursor-pointer group"
+          className="relative w-full sm:w-44 h-40 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 cursor-pointer group"
         >
           <img
             src={product.images[0]}
@@ -38,29 +39,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
             referrerPolicy="no-referrer"
           />
           {product.discountPercentage && (
-            <span className="absolute top-2 left-2 bg-rose-600 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-md">
-              -{product.discountPercentage}%
+            <span className="absolute top-2 left-2 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-xs">
+              -{product.discountPercentage}% OFF
+            </span>
+          )}
+          {product.isFlashDeal && (
+            <span className="absolute bottom-2 left-2 bg-yellow-400 text-orange-950 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+              <Zap className="w-2.5 h-2.5 fill-orange-700 text-orange-700" />
+              <span>LIGHTNING</span>
             </span>
           )}
         </div>
 
         <div className="flex-1 min-w-0 space-y-1.5 w-full">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+            <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
               {product.brand}
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-xs text-slate-500">{product.category}</span>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{product.category}</span>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+              <Truck className="w-3 h-3" /> Free Shipping
+            </span>
           </div>
 
           <h3
             onClick={() => viewProductDetail(product)}
-            className="text-base font-bold text-slate-900 hover:text-indigo-600 transition-colors cursor-pointer line-clamp-1"
+            className="text-base font-bold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer line-clamp-1"
           >
             {product.title}
           </h3>
 
-          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
             {product.shortDescription || product.description}
           </p>
 
@@ -68,25 +79,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
             <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
               <Star className="w-3.5 h-3.5 fill-amber-400" />
               <span>{product.rating}</span>
-              <span className="text-slate-400 font-normal">({product.reviewCount})</span>
+              <span className="text-slate-400 dark:text-slate-500 font-normal">({product.reviewCount})</span>
             </div>
-            <span className="text-slate-300">•</span>
-            <span className="text-xs text-slate-500">
-              Sold by <strong className="text-slate-700">{product.sellerName}</strong>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+              {soldCount > 1000 ? `${(soldCount / 1000).toFixed(1)}k+ sold` : `${soldCount} sold`}
+            </span>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Sold by <strong className="text-slate-700 dark:text-slate-300">{product.sellerName}</strong>
             </span>
           </div>
         </div>
 
-        <div className="sm:border-l sm:border-slate-100 sm:pl-4 flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-44 shrink-0 gap-3">
+        <div className="sm:border-l sm:border-slate-100 sm:dark:border-slate-800 sm:pl-4 flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-44 shrink-0 gap-3">
           <div className="text-left sm:text-right">
-            <div className="text-lg font-black text-slate-900">{formatPrice(product.price)}</div>
+            <div className="text-xl font-black text-orange-600 dark:text-orange-400">{formatPrice(product.price)}</div>
             {product.originalPrice && (
               <span className="text-xs text-slate-400 line-through">
                 {formatPrice(product.originalPrice)}
               </span>
             )}
-            <p className={`text-[11px] font-medium mt-0.5 ${product.stock > 5 ? 'text-emerald-600' : 'text-amber-600'}`}>
-              {product.stock > 0 ? (product.stock <= 5 ? `Only ${product.stock} left` : 'In Stock') : 'Out of Stock'}
+            <p className={`text-[11px] font-bold mt-0.5 ${product.stock > 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {product.stock > 0 ? (product.stock <= 5 ? `🔥 Almost Sold Out: ${product.stock} left` : 'In Stock') : 'Out of Stock'}
             </p>
           </div>
 
@@ -96,8 +111,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
               onClick={() => toggleWishlist(product.id)}
               className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
                 isFavorited
-                  ? 'bg-rose-50 border-rose-200 text-rose-600'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
               aria-label="Wishlist"
             >
@@ -107,10 +122,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
               id={`add-cart-btn-list-${product.id}`}
               onClick={() => addToCart(product, 1)}
               disabled={product.stock <= 0}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2.5 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-orange-600/20 active:scale-95"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Add</span>
+              <span>Add to Cart</span>
             </button>
           </div>
         </div>
@@ -123,13 +138,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
       id={`product-card-${product.id}`}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
-      className="group bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs hover:shadow-lg transition-all flex flex-col justify-between"
+      className="group bg-white dark:bg-slate-900 rounded-2xl p-3 sm:p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-lg dark:hover:border-orange-500/40 hover:border-orange-200 transition-all flex flex-col justify-between"
     >
       <div>
         {/* Product Image Container */}
         <div
           onClick={() => viewProductDetail(product)}
-          className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 mb-3 group/img cursor-pointer"
+          className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2.5 group/img cursor-pointer"
         >
           <img
             src={product.images[0]}
@@ -138,16 +153,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
             referrerPolicy="no-referrer"
           />
 
-          {/* Badges */}
+          {/* Temu Discount & Promo Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
             {product.discountPercentage && (
-              <span className="bg-rose-600 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-md shadow-xs">
+              <span className="bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-xs">
                 -{product.discountPercentage}%
               </span>
             )}
-            {product.isFeatured && (
-              <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-xs">
-                FEATURED
+            {product.isFlashDeal && (
+              <span className="bg-yellow-400 text-orange-950 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                <Zap className="w-2.5 h-2.5 fill-orange-700 text-orange-700" />
+                <span>LIGHTNING</span>
+              </span>
+            )}
+            {product.isFeatured && !product.isFlashDeal && (
+              <span className="bg-slate-900 text-yellow-300 text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-xs">
+                TOP 1
               </span>
             )}
           </div>
@@ -161,7 +182,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
                 toggleWishlist(product.id);
               }}
               className={`p-2 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer ${
-                isFavorited ? 'bg-rose-500 text-white' : 'bg-white/90 text-slate-700 hover:bg-white'
+                isFavorited ? 'bg-rose-500 text-white' : 'bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
               }`}
               aria-label="Wishlist"
             >
@@ -173,7 +194,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
                 e.stopPropagation();
                 setQuickViewProduct(product);
               }}
-              className="p-2 bg-white/90 hover:bg-white text-slate-700 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer"
+              className="p-2 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer"
               title="Quick View"
               aria-label="Quick View"
             >
@@ -181,14 +202,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
             </button>
           </div>
 
-          {/* Stock Ribbon */}
+          {/* Urgency Stock Ribbon */}
           {product.stock <= 5 && product.stock > 0 && (
-            <div className="absolute bottom-2 left-2 right-2 bg-amber-500/90 backdrop-blur-xs text-white text-[10px] font-bold py-1 px-2 rounded-md text-center">
-              Only {product.stock} units remaining
+            <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-rose-600/90 backdrop-blur-xs text-white text-[10px] font-black py-0.5 px-2 rounded-md text-center flex items-center justify-center gap-1">
+              <Flame className="w-3 h-3 text-yellow-300" />
+              <span>Only {product.stock} left at this price!</span>
             </div>
           )}
           {product.stock === 0 && (
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center text-white text-xs font-bold">
+            <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center text-white text-xs font-black">
               SOLD OUT
             </div>
           )}
@@ -196,55 +218,55 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
 
         {/* Product Details */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span className="font-semibold text-indigo-600 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider text-[10px]">
               {product.brand}
             </span>
             <div className="flex items-center gap-1 text-amber-500 font-bold">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
               <span>{product.rating}</span>
-              <span className="text-slate-400 font-normal">({product.reviewCount})</span>
             </div>
           </div>
 
           <h3
             onClick={() => viewProductDetail(product)}
-            className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer pt-0.5"
+            className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-1 cursor-pointer pt-0.5"
             title={product.title}
           >
             {product.title}
           </h3>
 
-          <p className="text-xs text-slate-500 line-clamp-1">
-            {product.shortDescription || product.category}
-          </p>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+            <span>{soldCount > 1000 ? `${(soldCount / 1000).toFixed(1)}k+ sold` : `${soldCount} sold`}</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Free Shipping</span>
+          </div>
         </div>
       </div>
 
       {/* Pricing & Add to Cart */}
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
         <div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-black text-slate-900">{formatPrice(product.price)}</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400">
+              {formatPrice(product.price)}
+            </span>
             {product.originalPrice && (
-              <span className="text-xs text-slate-400 line-through">
+              <span className="text-[11px] text-slate-400 line-through">
                 {formatPrice(product.originalPrice)}
               </span>
             )}
           </div>
-          <span className="text-[10px] text-slate-400 block truncate max-w-[120px]">
-            {product.sellerName}
-          </span>
         </div>
 
         <button
           id={`add-cart-card-${product.id}`}
           onClick={() => addToCart(product, 1)}
           disabled={product.stock <= 0}
-          className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+          className="p-2 sm:px-3 sm:py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95 flex items-center gap-1 font-bold text-xs shrink-0"
           aria-label={`Add ${product.title} to cart`}
         >
-          <ShoppingCart className="w-4 h-4" />
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Add</span>
         </button>
       </div>
     </motion.div>

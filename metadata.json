@@ -1,6 +1,6 @@
 {
   "name": "CartNova - Modern E-Commerce Platform",
-  "description": "Modern responsive digital marketplace with 24/7 customer support center, live concierge chat, personalized recommendations, recently viewed browsing history, bundles, multi-role views, and 1-tap checkout.",
+  "description": "Temu-inspired modern e-commerce marketplace featuring vibrant flash deals, interactive lucky spin wheel coupon bundles, free bonus gift progression, factory-direct bargain zone, 90-day free returns, 24/7 live concierge, and 1-tap checkout.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

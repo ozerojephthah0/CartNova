@@ -288,3 +288,16 @@ export interface FaqItem {
   tags: string[];
 }
 
+export type ThemeMode = 'temu' | 'light' | 'dark' | 'midnight' | 'warm-sepia' | 'cyberpunk';
+
+export interface ThemeOption {
+  id: ThemeMode;
+  name: string;
+  label: string;
+  description: string;
+  iconName: 'Sun' | 'Moon' | 'Sparkles' | 'Coffee' | 'Terminal' | 'Palette';
+  badge: string;
+  bgHex: string;
+  accentHex: string;
+}
+

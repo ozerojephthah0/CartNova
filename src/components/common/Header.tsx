@@ -38,15 +38,19 @@ import {
   Star,
   Bell,
   LifeBuoy,
+  Tablet,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NotificationPopover } from '../customer/NotificationPopover';
+import { ThemeSwitcher } from './ThemeSwitcher';
+import { Gift } from 'lucide-react';
 
 interface HeaderProps {
   onOpenRoleSwitcher: () => void;
+  onOpenSpinWheel?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWheel }) => {
   const {
     activeRole,
     currentUser,
@@ -96,6 +100,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
     switch (iconName) {
       case 'Smartphone':
         return <Smartphone className={className} />;
+      case 'Tablet':
+      case 'Tablets':
+      case 'Tablets & iPads':
+        return <Tablet className={className} />;
       case 'Footprints':
         return <Footprints className={className} />;
       case 'ShoppingBag':
@@ -272,21 +280,34 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
   }, [customerOrders]);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
       {/* Top Banner Notice */}
-      <div className="bg-slate-900 text-slate-200 text-xs py-1.5 px-4">
+      <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white text-xs py-1.5 px-4 shadow-inner">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded text-[11px] font-medium">
-              <Tag className="w-3 h-3" /> PROMO
+            <span className="inline-flex items-center gap-1 bg-yellow-400 text-orange-950 px-2 py-0.5 rounded font-black text-[11px] uppercase tracking-wide animate-pulse">
+              <Zap className="w-3 h-3 fill-orange-800 text-orange-800" /> TEMU FLASH
             </span>
-            <span className="hidden sm:inline text-slate-300">
-              Use code <strong className="text-white font-mono">NOVA20</strong> for 20% off orders over {formatPrice(50)}!
+            <span className="hidden sm:inline text-white font-medium">
+              🎁 Spin the Lucky Wheel for $100 Voucher Bundle • 🚚 Free Shipping On All Orders!
             </span>
-            <span className="sm:hidden text-slate-300">Code NOVA20 = 20% OFF</span>
+            <span className="sm:hidden text-white font-semibold">🎁 Up to 90% OFF + Free Shipping!</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px]">
+          <div className="flex items-center gap-3 sm:gap-4 text-[11px]">
+            {onOpenSpinWheel && (
+              <button
+                onClick={onOpenSpinWheel}
+                className="hidden md:flex items-center gap-1 text-yellow-200 hover:text-yellow-100 font-extrabold transition-colors cursor-pointer"
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span>Spin & Win $100</span>
+              </button>
+            )}
+
+            {/* Theme Switcher in top bar */}
+            <ThemeSwitcher variant="compact" />
+
             {/* Currency Selector */}
             <div className="relative">
               <button
@@ -640,14 +661,27 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Spin & Win Temu Button */}
+            {onOpenSpinWheel && (
+              <button
+                id="header-spin-wheel-btn"
+                onClick={onOpenSpinWheel}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-black bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white rounded-xl shadow-md shadow-orange-600/25 transition-all cursor-pointer transform hover:scale-105 active:scale-95 animate-pulse"
+                title="Spin to Win $100 Coupon Bundle"
+              >
+                <Gift className="w-4 h-4 text-yellow-200" />
+                <span className="hidden sm:inline">Spin & Win</span>
+              </button>
+            )}
+
             {/* AI Assistant Button */}
             <button
               id="header-ai-assistant-btn"
               onClick={() => setIsAiAssistantOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gradient-to-r from-indigo-50 to-violet-50 hover:from-indigo-100 hover:to-violet-100 text-indigo-700 rounded-xl border border-indigo-200/60 shadow-2xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 dark:from-slate-800 dark:to-slate-700 text-slate-800 dark:text-white rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer"
               title="Nova AI Shopping Assistant"
             >
-              <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+              <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />
               <span className="hidden md:inline">Nova AI</span>
             </button>
 
@@ -761,6 +795,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
                 </button>
               </>
             )}
+
+            {/* Visual Theme Switcher */}
+            <div className="hidden sm:block">
+              <ThemeSwitcher variant="dropdown" />
+            </div>
 
             {/* Auth / Profile Area */}
             {activeRole === 'customer' && !isLoggedIn ? (

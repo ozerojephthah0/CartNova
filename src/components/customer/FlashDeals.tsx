@@ -27,12 +27,12 @@ export const FlashDeals: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Today's Flash Deals</h2>
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Today's Flash Deals</h2>
               <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-md animate-pulse">
                 LIMITED STOCK
               </span>
             </div>
-            <p className="text-xs text-slate-600">Exclusive limited-time price drops from top sellers</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Exclusive limited-time price drops from top sellers</p>
           </div>
         </div>
       </div>
@@ -46,12 +46,12 @@ export const FlashDeals: React.FC = () => {
             <motion.div
               key={prod.id}
               whileHover={{ y: -4 }}
-              className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div>
                 <div
                   onClick={() => viewProductDetail(prod)}
-                  className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 mb-3 group cursor-pointer"
+                  className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-3 group cursor-pointer"
                 >
                   <img
                     src={prod.images[0]}
@@ -72,7 +72,7 @@ export const FlashDeals: React.FC = () => {
                         toggleWishlist(prod.id);
                       }}
                       className={`p-2 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer ${
-                        isFavorited ? 'bg-rose-500 text-white' : 'bg-white/90 text-slate-700 hover:bg-white'
+                        isFavorited ? 'bg-rose-500 text-white' : 'bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
                       }`}
                       aria-label="Wishlist"
                     >
@@ -84,7 +84,7 @@ export const FlashDeals: React.FC = () => {
                         e.stopPropagation();
                         setQuickViewProduct(prod);
                       }}
-                      className="p-2 bg-white/90 hover:bg-white text-slate-700 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer"
+                      className="p-2 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl backdrop-blur-md shadow-sm transition-colors cursor-pointer"
                       aria-label="Quick View"
                     >
                       <Eye className="w-4 h-4" />
@@ -93,19 +93,19 @@ export const FlashDeals: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                     {prod.brand} • {prod.category}
                   </span>
                   <h3
                     onClick={() => viewProductDetail(prod)}
-                    className="text-sm font-bold text-slate-900 line-clamp-1 hover:text-indigo-600 transition-colors cursor-pointer"
+                    className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                   >
                     {prod.title}
                   </h3>
                   <div className="flex items-baseline gap-2 pt-1">
-                    <span className="text-lg font-black text-slate-900">{formatPrice(prod.price)}</span>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">{formatPrice(prod.price)}</span>
                     {prod.originalPrice && (
-                      <span className="text-xs text-slate-400 line-through">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 line-through">
                         {formatPrice(prod.originalPrice)}
                       </span>
                     )}
@@ -114,13 +114,13 @@ export const FlashDeals: React.FC = () => {
               </div>
 
               {/* Claimed progress bar & Add to cart button */}
-              <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
                 <div>
-                  <div className="flex justify-between text-[11px] font-medium text-slate-500 mb-1">
+                  <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
                     <span>Claimed: <strong>{claimed}%</strong></span>
-                    <span className="text-amber-600 font-bold">Only {prod.stock} left!</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-bold">Only {prod.stock} left!</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full"
                       style={{ width: `${claimed}%` }}
@@ -132,7 +132,7 @@ export const FlashDeals: React.FC = () => {
                   id={`flash-add-cart-${prod.id}`}
                   onClick={() => addToCart(prod, 1)}
                   disabled={prod.stock <= 0}
-                  className="w-full py-2.5 bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+                  className="w-full py-2.5 bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
                   <span>{prod.stock > 0 ? 'Claim Deal' : 'Sold Out'}</span>
