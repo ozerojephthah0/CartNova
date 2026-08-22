@@ -64,7 +64,7 @@ export const TemuBargainZone: React.FC = () => {
               <Zap className="w-4 h-4 fill-white" />
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <span>TEMU BARGAIN ZONE</span>
+              <span>CARTNOVA BARGAIN ZONE</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-600 dark:text-orange-400 font-extrabold uppercase">
                 Up to 90% OFF
               </span>

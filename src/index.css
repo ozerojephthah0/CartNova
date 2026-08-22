@@ -22,8 +22,8 @@
     --color-brand-accent: #7c3aed;
   }
 
-  /* Temu Signature Vibrant Orange Theme */
-  [data-theme="temu"] {
+  /* CartNova Signature Vibrant Orange Theme */
+  [data-theme="temu"], [data-theme="cartnova"] {
     --color-canvas: #fffaf5;
     --color-canvas-subtle: #ffeedb;
     --color-surface: #ffffff;

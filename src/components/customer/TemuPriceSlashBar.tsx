@@ -26,7 +26,7 @@ interface FreeGiftOption {
 const FREE_GIFT_OPTIONS: FreeGiftOption[] = [
   {
     id: 'gift-1',
-    name: 'Temu True Wireless Earbuds (Noise Cancelling)',
+    name: 'CartNova True Wireless Earbuds (Noise Cancelling)',
     image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=200&auto=format&fit=crop&q=80',
     retailValue: 18500,
     unlockedAt: 30000,
@@ -72,20 +72,20 @@ export const TemuPriceSlashBar: React.FC<{ onOpenSpinWheel: () => void }> = ({ o
       id: `free-gift-${gift.id}`,
       title: `[FREE BONUS GIFT] ${gift.name}`,
       slug: `free-gift-${gift.id}`,
-      description: 'Exclusive Temu promotional free bonus gift rewarded for your purchase.',
-      shortDescription: 'Free Temu bonus item',
+      description: 'Exclusive CartNova promotional free bonus gift rewarded for your purchase.',
+      shortDescription: 'Free CartNova bonus item',
       price: 0,
       originalPrice: gift.retailValue,
       discountPercentage: 100,
       category: 'Audio & Wearables',
-      brand: 'Temu Rewards',
+      brand: 'CartNova Rewards',
       images: [gift.image],
       rating: 4.9,
       reviewCount: 482,
       stock: 50,
-      sellerId: 'seller-temu',
-      sellerName: 'Temu Direct Hub',
-      tags: ['free gift', 'bonus', 'temu'],
+      sellerId: 'seller-cartnova',
+      sellerName: 'CartNova Direct Hub',
+      tags: ['free gift', 'bonus', 'cartnova'],
       specs: { 'Condition': 'Brand New Free Gift', 'Warranty': 'Included' },
       createdAt: new Date().toISOString(),
     };
@@ -97,14 +97,14 @@ export const TemuPriceSlashBar: React.FC<{ onOpenSpinWheel: () => void }> = ({ o
 
   return (
     <div className="space-y-3 mb-6">
-      {/* Temu Live Marquee & Trust Bar */}
+      {/* CartNova Live Marquee & Trust Bar */}
       <div className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-600 rounded-2xl p-3 sm:p-4 text-white shadow-md border border-amber-400/40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Left Tagline & Perks */}
           <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start text-xs sm:text-sm font-extrabold tracking-wide">
             <span className="flex items-center gap-1.5 bg-black/20 px-2.5 py-1 rounded-full text-yellow-200">
               <Zap className="w-4 h-4 fill-yellow-300 text-yellow-300 animate-bounce" />
-              <span>SHOP LIKE A BILLIONAIRE</span>
+              <span>SHOP LIKE A TRILLIONAIRE</span>
             </span>
 
             <span className="flex items-center gap-1 text-white font-bold">

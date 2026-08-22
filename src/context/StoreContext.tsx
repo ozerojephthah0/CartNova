@@ -20,6 +20,14 @@ import {
   FaqItem,
   ThemeMode,
   ThemeOption,
+  SlashGameItem,
+  FriendSlashAssist,
+  MysteryBoxTier,
+  MysteryBoxPrize,
+  TeamBuyGroup,
+  ProductQuestion,
+  SubscriptionItem,
+  SeasonalEvent,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -32,6 +40,11 @@ import {
   INITIAL_SUPPORT_TICKETS,
   INITIAL_FAQS,
   THEME_OPTIONS,
+  INITIAL_SLASH_ITEMS,
+  INITIAL_MYSTERY_BOXES,
+  INITIAL_PRODUCT_QUESTIONS,
+  INITIAL_SUBSCRIPTIONS,
+  SEASONAL_EVENTS,
 } from '../data/initialData';
 
 export type CurrencyCode = 'NGN' | 'USD' | 'EUR' | 'GBP';
@@ -65,9 +78,9 @@ interface StoreContextType {
   setAuthModalMode: (mode: 'login' | 'signup') => void;
   openAuthModal: (mode?: 'login' | 'signup') => void;
   closeAuthModal: () => void;
-  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; message: string }>;
-  signupWithEmail: (name: string, email: string, password?: string) => Promise<{ success: boolean; message: string }>;
-  loginWithGoogle: (googleAccount?: { name?: string; email?: string; avatar?: string }) => Promise<{ success: boolean; message: string }>;
+  loginWithEmail: (email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
+  signupWithEmail: (name: string, email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
+  loginWithGoogle: (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
 
@@ -164,8 +177,63 @@ interface StoreContextType {
   setIsCheckoutOpen: (open: boolean) => void;
   isAiAssistantOpen: boolean;
   setIsAiAssistantOpen: (open: boolean) => void;
-  activeCustomerTab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support';
-  setActiveCustomerTab: (tab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support') => void;
+  activeCustomerTab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events';
+  setActiveCustomerTab: (tab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events') => void;
+
+  // Seasonal Events & Shopping Campaigns Feature (20% OFF)
+  seasonalEvents: SeasonalEvent[];
+  selectedSeasonalEvent: SeasonalEvent | null;
+  setSelectedSeasonalEvent: (event: SeasonalEvent | null) => void;
+  isSeasonalEventModalOpen: boolean;
+  setIsSeasonalEventModalOpen: (open: boolean) => void;
+  activateSeasonalEventDiscount: (event: SeasonalEvent) => void;
+
+  // Slash It to ₦0 Feature (Temu Price Slash)
+  slashItems: SlashGameItem[];
+  activeSlashItem: SlashGameItem | null;
+  setActiveSlashItem: (item: SlashGameItem | null) => void;
+  slashPrice: (slashId: string) => { amount: number; remaining: number; completed: boolean };
+  simulateFriendSlash: (slashId: string) => void;
+  claimSlashedItem: (slashId: string) => void;
+  isSlashModalOpen: boolean;
+  setIsSlashModalOpen: (open: boolean) => void;
+
+  // Mystery Box / Blind Box Feature
+  mysteryBoxes: MysteryBoxTier[];
+  isMysteryBoxOpen: boolean;
+  setIsMysteryBoxOpen: (open: boolean) => void;
+  openMysteryBox: (boxTierId: string) => Promise<MysteryBoxPrize>;
+  unboxedPrizes: MysteryBoxPrize[];
+  claimMysteryPrize: (prize: MysteryBoxPrize) => void;
+
+  // Amazon Prime / Nova+ Membership Feature
+  isNovaPrime: boolean;
+  setIsNovaPrime: (isMember: boolean) => void;
+  toggleNovaPrime: () => void;
+  isNovaPrimeModalOpen: boolean;
+  setIsNovaPrimeModalOpen: (open: boolean) => void;
+
+  // Amazon 1-Click Buy Feature
+  oneClickBuy: (product: Product, quantity?: number) => void;
+  oneClickBuySuccessOrder: Order | null;
+  setOneClickBuySuccessOrder: (order: Order | null) => void;
+
+  // Live Delivery Tracking Modal (Amazon Style)
+  isTrackingModalOpen: boolean;
+  setIsTrackingModalOpen: (open: boolean) => void;
+  trackingOrder: Order | null;
+  setTrackingOrder: (order: Order | null) => void;
+
+  // Product Q&A Community
+  productQuestions: ProductQuestion[];
+  askProductQuestion: (productId: string, question: string) => void;
+  answerProductQuestion: (questionId: string, answer: string) => void;
+  voteHelpfulAnswer: (questionId: string, answerId: string) => void;
+
+  // Subscribe & Save (Amazon Style)
+  subscriptions: SubscriptionItem[];
+  addSubscription: (productId: string, frequencyMonths: number) => void;
+  cancelSubscription: (subId: string) => void;
 
   // Customer Notifications
   notifications: CustomerNotification[];
@@ -254,6 +322,12 @@ const STORAGE_KEYS = {
   SEARCH_HISTORY: 'cartnova_search_history_v2',
   RECENTLY_VIEWED: 'cartnova_recently_viewed_v2',
   THEME: 'cartnova_theme_mode_v2',
+  SLASH_ITEMS: 'cartnova_slash_items_v2',
+  MYSTERY_PRIZES: 'cartnova_mystery_prizes_v2',
+  NOVA_PRIME: 'cartnova_nova_prime_v2',
+  QUESTIONS: 'cartnova_questions_v2',
+  SUBSCRIPTIONS: 'cartnova_subscriptions_v2',
+  SEASONAL_EVENTS: 'cartnova_seasonal_events_v2',
 };
 
 const DEFAULT_POPULAR_SEARCHES = [
@@ -357,12 +431,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.THEME) as ThemeMode;
-      if (saved && ['temu', 'light', 'dark', 'midnight', 'warm-sepia', 'cyberpunk'].includes(saved)) {
+      if (saved && ['cartnova', 'temu', 'light', 'dark', 'midnight', 'warm-sepia', 'cyberpunk'].includes(saved)) {
         return saved;
       }
-      return 'temu';
+      return 'cartnova';
     } catch {
-      return 'temu';
+      return 'cartnova';
     }
   });
 
@@ -533,8 +607,89 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [activeCustomerTab, setActiveCustomerTab] = useState<
-    'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications'
+    'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub'
   >('shop');
+
+  // Slash It to ₦0 state (Temu Price Slash)
+  const [slashItems, setSlashItems] = useState<SlashGameItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SLASH_ITEMS);
+      return saved ? JSON.parse(saved) : INITIAL_SLASH_ITEMS;
+    } catch {
+      return INITIAL_SLASH_ITEMS;
+    }
+  });
+  const [activeSlashItem, setActiveSlashItem] = useState<SlashGameItem | null>(() => INITIAL_SLASH_ITEMS[0] || null);
+  const [isSlashModalOpen, setIsSlashModalOpen] = useState(false);
+
+  // Mystery Box state
+  const [mysteryBoxes] = useState<MysteryBoxTier[]>(INITIAL_MYSTERY_BOXES);
+  const [isMysteryBoxOpen, setIsMysteryBoxOpen] = useState(false);
+  const [unboxedPrizes, setUnboxedPrizes] = useState<MysteryBoxPrize[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.MYSTERY_PRIZES);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Nova+ Prime state (Amazon Prime equivalent)
+  const [isNovaPrime, setIsNovaPrimeState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.NOVA_PRIME) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isNovaPrimeModalOpen, setIsNovaPrimeModalOpen] = useState(false);
+
+  // 1-Click Buy state
+  const [oneClickBuySuccessOrder, setOneClickBuySuccessOrder] = useState<Order | null>(null);
+
+  // Live Tracking Modal state
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+
+  // Q&A Community state
+  const [productQuestions, setProductQuestions] = useState<ProductQuestion[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.QUESTIONS);
+      return saved ? JSON.parse(saved) : INITIAL_PRODUCT_QUESTIONS;
+    } catch {
+      return INITIAL_PRODUCT_QUESTIONS;
+    }
+  });
+
+  // Subscribe & Save state
+  const [subscriptions, setSubscriptions] = useState<SubscriptionItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SUBSCRIPTIONS);
+      return saved ? JSON.parse(saved) : INITIAL_SUBSCRIPTIONS;
+    } catch {
+      return INITIAL_SUBSCRIPTIONS;
+    }
+  });
+
+  // Seasonal Events & Shopping Campaigns state
+  const [seasonalEvents, setSeasonalEvents] = useState<SeasonalEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SEASONAL_EVENTS);
+      if (saved) {
+        const parsed: SeasonalEvent[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return SEASONAL_EVENTS;
+    } catch {
+      return SEASONAL_EVENTS;
+    }
+  });
+
+  const [selectedSeasonalEvent, setSelectedSeasonalEvent] = useState<SeasonalEvent | null>(() => {
+    return SEASONAL_EVENTS[0] || null;
+  });
+
+  const [isSeasonalEventModalOpen, setIsSeasonalEventModalOpen] = useState(false);
 
   // Customer Notifications state
   const [notifications, setNotifications] = useState<CustomerNotification[]>(() => {
@@ -877,31 +1032,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Customer Authentication Handlers
-  const loginWithEmail = async (email: string, password?: string): Promise<{ success: boolean; message: string }> => {
+  // Authentication Handlers (Customer or Admin)
+  const loginWithEmail = async (email: string, password?: string, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       addToast('error', 'Login Failed', 'Please provide a valid email address');
       return { success: false, message: 'Email is required' };
     }
 
+    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : 'customer');
+
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existingUser) {
-      setCurrentUser(existingUser);
-      setActiveRole(existingUser.role);
+      const updatedUser: UserProfile = {
+        ...existingUser,
+        role: preferredRole ? preferredRole : existingUser.role,
+      };
+      setAllUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+      setCurrentUser(updatedUser);
+      setActiveRole(targetRole);
       setIsLoggedIn(true);
-      addToast('success', 'Welcome Back', `Logged in as ${existingUser.name}`);
+      addToast(
+        'success',
+        targetRole === 'admin' ? '🛡️ Admin Access Granted' : 'Welcome Back',
+        `Logged in as ${updatedUser.name} (${targetRole.toUpperCase()})`
+      );
       closeAuthModal();
       return { success: true, message: 'Login successful' };
     }
 
-    // Auto-create customer profile if email not yet registered
+    // Auto-create user profile if email not yet registered
     const nameFromEmail = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const newUser: UserProfile = {
-      id: 'cust-' + Date.now(),
-      name: nameFromEmail || 'Customer',
+      id: (targetRole === 'admin' ? 'admin-' : 'cust-') + Date.now(),
+      name: nameFromEmail || (targetRole === 'admin' ? 'Admin Manager' : 'Customer'),
       email: cleanEmail,
-      role: 'customer',
+      role: targetRole,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nameFromEmail || cleanEmail)}`,
       authProvider: 'email',
       createdAt: new Date().toISOString(),
@@ -910,16 +1076,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setAllUsers((prev) => [newUser, ...prev]);
     setCurrentUser(newUser);
-    setActiveRole('customer');
+    setActiveRole(targetRole);
     setIsLoggedIn(true);
-    addToast('success', 'Account Created & Signed In', `Welcome to CartNova, ${newUser.name}!`);
+    addToast(
+      'success',
+      targetRole === 'admin' ? '🛡️ Admin Account Created' : 'Account Created & Signed In',
+      `Welcome to CartNova, ${newUser.name}! Accessing as ${targetRole.toUpperCase()}`
+    );
     closeAuthModal();
     return { success: true, message: 'Welcome to CartNova' };
   };
 
-  const signupWithEmail = async (name: string, email: string, password?: string): Promise<{ success: boolean; message: string }> => {
+  const signupWithEmail = async (name: string, email: string, password?: string, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
+    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : 'customer');
 
     if (!cleanName || !cleanEmail) {
       addToast('error', 'Sign Up Failed', 'Full name and email are required');
@@ -931,21 +1102,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updatedExisting: UserProfile = {
         ...existingUser,
         name: cleanName || existingUser.name,
+        role: targetRole,
       };
       setAllUsers((prev) => prev.map((u) => (u.id === updatedExisting.id ? updatedExisting : u)));
       setCurrentUser(updatedExisting);
-      setActiveRole(updatedExisting.role);
+      setActiveRole(targetRole);
       setIsLoggedIn(true);
-      addToast('info', 'Account Exists', `Signed in as ${cleanName}`);
+      addToast(
+        'info',
+        targetRole === 'admin' ? '🛡️ Admin Account Updated' : 'Account Exists',
+        `Signed in as ${cleanName} (${targetRole.toUpperCase()})`
+      );
       closeAuthModal();
       return { success: true, message: 'Signed in with existing account' };
     }
 
     const newUser: UserProfile = {
-      id: 'cust-' + Date.now(),
+      id: (targetRole === 'admin' ? 'admin-' : 'cust-') + Date.now(),
       name: cleanName,
       email: cleanEmail,
-      role: 'customer',
+      role: targetRole,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
       authProvider: 'email',
       createdAt: new Date().toISOString(),
@@ -954,22 +1130,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setAllUsers((prev) => [newUser, ...prev]);
     setCurrentUser(newUser);
-    setActiveRole('customer');
+    setActiveRole(targetRole);
     setIsLoggedIn(true);
-    addToast('success', 'Registration Complete', `Welcome to CartNova, ${cleanName}!`);
+    addToast(
+      'success',
+      targetRole === 'admin' ? '🛡️ Admin Account Registered' : 'Registration Complete',
+      `Welcome to CartNova, ${cleanName}! Acting as ${targetRole.toUpperCase()}`
+    );
     closeAuthModal();
     return { success: true, message: 'Account created successfully' };
   };
 
-  const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }): Promise<{ success: boolean; message: string }> => {
+  const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
     const targetEmail = (googleAccount?.email || '').trim().toLowerCase();
     if (!targetEmail || !targetEmail.includes('@')) {
       addToast('error', 'Sign-In Failed', 'Please provide a valid Gmail or email address');
       return { success: false, message: 'Invalid email address' };
     }
 
+    const targetRole = preferredRole || (targetEmail.includes('admin') ? 'admin' : 'customer');
     const autoName = targetEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-    const targetName = googleAccount?.name?.trim() || autoName || 'Google User';
+    const targetName = googleAccount?.name?.trim() || autoName || (targetRole === 'admin' ? 'Google Admin' : 'Google Customer');
     const targetAvatar = googleAccount?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(targetName)}`;
 
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === targetEmail);
@@ -978,22 +1159,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...existingUser,
         name: googleAccount?.name?.trim() || existingUser.name || targetName,
         avatar: existingUser.avatar || targetAvatar,
+        role: targetRole,
         authProvider: 'google',
       };
       setAllUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
       setCurrentUser(updatedUser);
-      setActiveRole(updatedUser.role);
+      setActiveRole(targetRole);
       setIsLoggedIn(true);
-      addToast('success', 'Google Sign-In Successful', `Welcome back, ${updatedUser.name}!`);
+      addToast(
+        'success',
+        targetRole === 'admin' ? '🛡️ Google Admin Connected' : 'Google Sign-In Successful',
+        `Welcome back, ${updatedUser.name} (${targetRole.toUpperCase()})`
+      );
       closeAuthModal();
       return { success: true, message: 'Google sign in successful' };
     }
 
     const newGoogleUser: UserProfile = {
-      id: 'google-user-' + Date.now(),
+      id: (targetRole === 'admin' ? 'admin-google-' : 'google-user-') + Date.now(),
       name: targetName,
       email: targetEmail,
-      role: 'customer',
+      role: targetRole,
       avatar: targetAvatar,
       authProvider: 'google',
       createdAt: new Date().toISOString(),
@@ -1009,9 +1195,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setAllUsers((prev) => [newGoogleUser, ...prev]);
     setCurrentUser(newGoogleUser);
-    setActiveRole('customer');
+    setActiveRole(targetRole);
     setIsLoggedIn(true);
-    addToast('success', 'Google Sign-In Successful', `Connected as ${targetName}`);
+    addToast(
+      'success',
+      targetRole === 'admin' ? '🛡️ Google Admin Provisioned' : 'Google Sign-In Successful',
+      `Connected as ${targetName} (${targetRole.toUpperCase()})`
+    );
     closeAuthModal();
     return { success: true, message: 'Google sign in successful' };
   };
@@ -1984,6 +2174,398 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFilters(initialFilters);
   };
 
+  // Nova+ Prime Handlers
+  const setIsNovaPrime = (isMember: boolean) => {
+    setIsNovaPrimeState(isMember);
+    try {
+      localStorage.setItem(STORAGE_KEYS.NOVA_PRIME, String(isMember));
+    } catch {}
+    if (isMember) {
+      addToast('success', '👑 Nova+ Prime Activated!', 'You now enjoy Free 1-Day Express Shipping & 15% Exclusive Member Discounts');
+    }
+  };
+
+  const toggleNovaPrime = () => {
+    setIsNovaPrime(!isNovaPrime);
+  };
+
+  // Slash It to ₦0 Handlers
+  const slashPrice = (slashId: string) => {
+    let result = { amount: 0, remaining: 0, completed: false };
+    setSlashItems((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id !== slashId || item.status === 'completed' || item.status === 'claimed') return item;
+
+        const cut = Math.min(item.currentPrice, Math.floor(Math.random() * 1200) + 600);
+        const newCurrent = Math.max(0, item.currentPrice - cut);
+        const newTotalSlashed = item.slashedTotal + cut;
+        const newPercentage = Number(((newTotalSlashed / item.originalPrice) * 100).toFixed(1));
+        const newSlashesLeft = Math.max(0, item.slashesLeft - 1);
+        const isNowDone = newCurrent === 0 || newSlashesLeft === 0;
+
+        const assistEntry: FriendSlashAssist = {
+          id: `ast-${Date.now()}`,
+          name: currentUser?.name || 'You',
+          avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          amount: cut,
+          time: 'Just now',
+        };
+
+        const newItem: SlashGameItem = {
+          ...item,
+          currentPrice: newCurrent,
+          slashedTotal: newTotalSlashed,
+          percentageSlashed: isNowDone ? 100 : Math.min(99.9, newPercentage),
+          slashesLeft: newSlashesLeft,
+          status: isNowDone ? 'completed' : 'active',
+          assists: [assistEntry, ...item.assists],
+        };
+
+        result = { amount: cut, remaining: newCurrent, completed: isNowDone };
+        if (activeSlashItem?.id === slashId) {
+          setActiveSlashItem(newItem);
+        }
+        return newItem;
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEYS.SLASH_ITEMS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    return result;
+  };
+
+  const simulateFriendSlash = (slashId: string) => {
+    const friendNames = [
+      { name: 'Kelechi Okafor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
+      { name: 'Bolanle Adeyemi', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
+      { name: 'Emeka Eze', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' },
+    ];
+
+    setSlashItems((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id !== slashId) return item;
+        const newAssists = friendNames.map((f, i) => ({
+          id: `friend-${Date.now()}-${i}`,
+          name: f.name,
+          avatar: f.avatar,
+          amount: Math.floor(item.currentPrice / friendNames.length) + (i === 0 ? item.currentPrice % friendNames.length : 0),
+          time: 'Just now',
+        }));
+
+        const newItem: SlashGameItem = {
+          ...item,
+          currentPrice: 0,
+          slashedTotal: item.originalPrice,
+          percentageSlashed: 100,
+          slashesLeft: 0,
+          status: 'completed',
+          assists: [...newAssists, ...item.assists],
+        };
+
+        if (activeSlashItem?.id === slashId) {
+          setActiveSlashItem(newItem);
+        }
+        return newItem;
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEYS.SLASH_ITEMS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    addToast('success', '🎉 100% Slashed to ₦0!', 'Your friends helped slash the price down to ₦0! Claim your free item now.');
+  };
+
+  const claimSlashedItem = (slashId: string) => {
+    const slashItem = slashItems.find((s) => s.id === slashId);
+    if (!slashItem) return;
+
+    const targetProduct: Product = products.find((p) => p.id === slashItem.productId) || {
+      id: slashItem.productId,
+      title: slashItem.title,
+      slug: `slashed-${slashItem.id}`,
+      description: 'Exclusive 100% Free Slash Reward Prize',
+      shortDescription: 'Free Slashed Reward Item',
+      price: 0,
+      originalPrice: slashItem.originalPrice,
+      discountPercentage: 100,
+      category: 'Electronics & Gadgets',
+      brand: 'CartNova Free Rewards',
+      images: [slashItem.image],
+      rating: 5.0,
+      reviewCount: 999,
+      stock: 50,
+      sellerId: 'cartnova-direct',
+      sellerName: 'CartNova Direct Warehouse',
+      tags: ['free item', 'price slash', 'reward'],
+      specs: { 'Status': '100% Slashed Free Gift', 'Delivery': 'Express Priority Free' },
+      createdAt: new Date().toISOString(),
+    };
+
+    addToCart({ ...targetProduct, price: 0, originalPrice: slashItem.originalPrice }, 1);
+
+    setSlashItems((prev) => {
+      const updated = prev.map((s) => (s.id === slashId ? { ...s, status: 'claimed' as const } : s));
+      try {
+        localStorage.setItem(STORAGE_KEYS.SLASH_ITEMS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    addToast('success', '🎁 Free Item Added to Cart!', `${slashItem.title} added for ₦0. Complete checkout to dispatch!`);
+    setIsSlashModalOpen(false);
+    setIsCartOpen(true);
+  };
+
+  // Mystery Box Handlers
+  const openMysteryBox = async (boxTierId: string): Promise<MysteryBoxPrize> => {
+    const tier = mysteryBoxes.find((b) => b.id === boxTierId) || mysteryBoxes[0];
+    const rand = Math.random() * 100;
+    let accumulated = 0;
+    let selectedPrize = tier.prizes[0];
+    for (const prize of tier.prizes) {
+      accumulated += prize.chance;
+      if (rand <= accumulated) {
+        selectedPrize = prize;
+        break;
+      }
+    }
+
+    setUnboxedPrizes((prev) => {
+      const updated = [selectedPrize, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.MYSTERY_PRIZES, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    return selectedPrize;
+  };
+
+  const claimMysteryPrize = (prize: MysteryBoxPrize) => {
+    if (prize.title.toLowerCase().includes('coupon') || prize.title.toLowerCase().includes('pass')) {
+      applyCoupon('CARTNOVA100');
+      addToast('success', '🎟️ Voucher Activated!', `${prize.title} applied to your account.`);
+    } else {
+      const prizeProduct: Product = {
+        id: `mystery-${prize.id}-${Date.now()}`,
+        title: `[MYSTERY BOX PRIZE] ${prize.title}`,
+        slug: `mystery-prize-${prize.id}`,
+        description: `Exclusive unboxed ${prize.rarity} mystery box treasure prize!`,
+        shortDescription: `${prize.rarity} Mystery Item`,
+        price: 0,
+        originalPrice: prize.retailPrice,
+        discountPercentage: 100,
+        category: 'Electronics & Gadgets',
+        brand: 'CartNova Mystery Drop',
+        images: [prize.image],
+        rating: 5.0,
+        reviewCount: 340,
+        stock: 100,
+        sellerId: 'cartnova-vault',
+        sellerName: 'CartNova Mystery Vault',
+        tags: ['mystery box', 'free gift', 'unboxed'],
+        specs: { 'Rarity': prize.rarity, 'Retail Value': `₦${prize.retailPrice.toLocaleString()}` },
+        createdAt: new Date().toISOString(),
+      };
+      addToCart(prizeProduct, 1);
+      addToast('success', '🎁 Mystery Prize Added for ₦0!', `${prize.title} added to cart.`);
+    }
+  };
+
+  // 1-Click Buy Handler
+  const oneClickBuy = (product: Product, quantity = 1) => {
+    const unitPrice = isNovaPrime && product.discountPercentage ? Math.floor(product.price * 0.9) : product.price;
+    const subtotal = unitPrice * quantity;
+    const shippingFee = 0;
+    const newOrder: Order = {
+      id: `ord-1click-${Date.now()}`,
+      orderNumber: `CN-1CLICK-${Math.floor(100000 + Math.random() * 900000)}`,
+      customerId: currentUser.id,
+      customerName: currentUser.name,
+      customerEmail: currentUser.email,
+      customerPhone: currentUser.phone || '+234 801 234 5678',
+      items: [
+        {
+          productId: product.id,
+          productTitle: product.title,
+          productImage: product.images[0] || '',
+          quantity,
+          unitPrice,
+          sellerId: product.sellerId,
+          sellerName: product.sellerName,
+        },
+      ],
+      subtotal,
+      tax: 0,
+      shippingFee,
+      discountAmount: isNovaPrime ? Math.floor(product.price * 0.1 * quantity) : 0,
+      totalAmount: subtotal,
+      status: 'processing',
+      paymentStatus: 'paid',
+      paymentMethod: 'card',
+      shippingAddress: currentUser.address || {
+        fullName: currentUser.name,
+        street: '14 Marina Boulevard, Victoria Island',
+        city: 'Lagos',
+        state: 'Lagos State',
+        zip: '101241',
+        country: 'Nigeria',
+      },
+      shippingSpeed: isNovaPrime ? 'overnight' : 'express',
+      trackingNumber: `CNTRK${Math.floor(100000000 + Math.random() * 900000000)}`,
+      carrier: isNovaPrime ? 'CartNova Prime Express 1-Day' : 'CartNova Direct Courier',
+      estimatedDelivery: 'Tomorrow by 2:00 PM',
+      timeline: [
+        {
+          status: 'processing',
+          timestamp: new Date().toISOString(),
+          title: 'Order Placed with 1-Click Buy',
+          description: 'Payment authorized instantly via default 1-Click Card. Preparing dispatch.',
+        },
+        {
+          status: 'shipped',
+          timestamp: new Date(Date.now() + 3600000).toISOString(),
+          title: 'Dispatched from CartNova Hub',
+          description: 'Package sorted and handed to express carrier.',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    setOrders((prev) => {
+      const updated = [newOrder, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    setOneClickBuySuccessOrder(newOrder);
+    addToast('success', '⚡ 1-Click Buy Success!', `Order #${newOrder.orderNumber} placed for ${product.title}`);
+  };
+
+  // Product Q&A Handlers
+  const askProductQuestion = (productId: string, question: string) => {
+    if (!question.trim()) return;
+    const newQ: ProductQuestion = {
+      id: `q-${Date.now()}`,
+      productId,
+      question: question.trim(),
+      askedBy: currentUser.name,
+      date: 'Just now',
+      votes: 1,
+      answers: [],
+    };
+    setProductQuestions((prev) => {
+      const updated = [newQ, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('success', 'Question Posted!', 'Your question was submitted to the community and seller.');
+  };
+
+  const answerProductQuestion = (questionId: string, answer: string) => {
+    if (!answer.trim()) return;
+    setProductQuestions((prev) => {
+      const updated = prev.map((q) => {
+        if (q.id !== questionId) return q;
+        const newAns = {
+          id: `ans-${Date.now()}`,
+          answeredBy: currentUser.name,
+          isSeller: activeRole === 'seller',
+          isVerifiedBuyer: true,
+          answer: answer.trim(),
+          date: 'Just now',
+          helpfulVotes: 1,
+        };
+        return { ...q, answers: [...q.answers, newAns] };
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('success', 'Answer Submitted!', 'Thank you for helping fellow shoppers.');
+  };
+
+  const voteHelpfulAnswer = (questionId: string, answerId: string) => {
+    setProductQuestions((prev) => {
+      const updated = prev.map((q) => {
+        if (q.id !== questionId) return q;
+        return {
+          ...q,
+          answers: q.answers.map((a) => (a.id === answerId ? { ...a, helpfulVotes: a.helpfulVotes + 1 } : a)),
+        };
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('info', 'Helpful Vote Recorded', 'Thank you for your feedback.');
+  };
+
+  // Subscriptions Handlers
+  const addSubscription = (productId: string, frequencyMonths: number) => {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+    const discount = 15;
+    const pricePerDelivery = Math.floor(prod.price * (1 - discount / 100));
+    const nextDate = new Date();
+    nextDate.setMonth(nextDate.getMonth() + frequencyMonths);
+
+    const newSub: SubscriptionItem = {
+      id: `sub-${Date.now()}`,
+      productId,
+      product: prod,
+      frequencyMonths,
+      discountPercent: discount,
+      pricePerDelivery,
+      nextDeliveryDate: nextDate.toISOString().split('T')[0],
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    setSubscriptions((prev) => {
+      const updated = [newSub, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.SUBSCRIPTIONS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    addToast('success', '🔄 Subscribe & Save Active!', `Subscribed with 15% discount every ${frequencyMonths} month(s).`);
+  };
+
+  const cancelSubscription = (subId: string) => {
+    setSubscriptions((prev) => {
+      const updated = prev.filter((s) => s.id !== subId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.SUBSCRIPTIONS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast('info', 'Subscription Cancelled', 'Your auto-delivery subscription was removed.');
+  };
+
+  // Seasonal Events & Shopping Campaigns Handlers
+  const activateSeasonalEventDiscount = (event: SeasonalEvent) => {
+    setSelectedSeasonalEvent(event);
+    applyCoupon(event.couponCode);
+    addToast(
+      'success',
+      `🎉 20% Discount Activated for ${event.shortName}!`,
+      `Coupon ${event.couponCode} applied for 20% OFF across the store. Happy Celebrations!`
+    );
+  };
+
   const resetStoreData = () => {
     localStorage.clear();
     setProducts(INITIAL_PRODUCTS);
@@ -1997,6 +2579,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveRole('customer');
     setAppliedCoupon(null);
     setFilters(initialFilters);
+    setSlashItems(INITIAL_SLASH_ITEMS);
+    setSubscriptions(INITIAL_SUBSCRIPTIONS);
+    setProductQuestions(INITIAL_PRODUCT_QUESTIONS);
+    setIsNovaPrimeState(false);
     addToast('info', 'Store Reset', 'Demo data reloaded to factory defaults');
   };
 
@@ -2090,6 +2676,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsAiAssistantOpen,
         activeCustomerTab,
         setActiveCustomerTab,
+        // Slash It to ₦0
+        slashItems,
+        activeSlashItem,
+        setActiveSlashItem,
+        slashPrice,
+        simulateFriendSlash,
+        claimSlashedItem,
+        isSlashModalOpen,
+        setIsSlashModalOpen,
+        // Seasonal Events & Campaigns (20% OFF)
+        seasonalEvents,
+        selectedSeasonalEvent,
+        setSelectedSeasonalEvent,
+        isSeasonalEventModalOpen,
+        setIsSeasonalEventModalOpen,
+        activateSeasonalEventDiscount,
+        // Mystery Box
+        mysteryBoxes,
+        isMysteryBoxOpen,
+        setIsMysteryBoxOpen,
+        openMysteryBox,
+        unboxedPrizes,
+        claimMysteryPrize,
+        // Nova Prime
+        isNovaPrime,
+        setIsNovaPrime,
+        toggleNovaPrime,
+        isNovaPrimeModalOpen,
+        setIsNovaPrimeModalOpen,
+        // 1-Click Buy
+        oneClickBuy,
+        oneClickBuySuccessOrder,
+        setOneClickBuySuccessOrder,
+        // Tracking
+        isTrackingModalOpen,
+        setIsTrackingModalOpen,
+        trackingOrder,
+        setTrackingOrder,
+        // Q&A
+        productQuestions,
+        askProductQuestion,
+        answerProductQuestion,
+        voteHelpfulAnswer,
+        // Subscriptions
+        subscriptions,
+        addSubscription,
+        cancelSubscription,
+        // Notifications
         notifications,
         userNotifications,
         unreadNotificationsCount,

@@ -42,6 +42,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from './ProductCard';
 import { RecentlyViewedAndRecommended } from './RecentlyViewedAndRecommended';
 import { FrequentlyBoughtTogether } from './FrequentlyBoughtTogether';
+import { SubscribeAndSaveSelector } from './SubscribeAndSaveSelector';
+import { CompareProductsTable } from './CompareProductsTable';
+import { CustomerQnASection } from './CustomerQnASection';
+import { Crown, Swords } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
   const {
@@ -64,6 +68,10 @@ export const ProductDetailPage: React.FC = () => {
     setFilters,
     currentUser,
     addToRecentlyViewed,
+    openOneClickBuyModal,
+    slashPrice,
+    isNovaPrime,
+    setIsNovaPrimeModalOpen,
   } = useStore();
 
   // Find the selected product or fallback to the first product
@@ -800,28 +808,72 @@ export const ProductDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Prime Perks Banner */}
+            <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Crown className="w-4 h-4 text-yellow-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-blue-900 dark:text-blue-200">
+                      {isNovaPrime ? 'CartNova Prime Member' : 'CartNova Prime Available'}
+                    </span>
+                    <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded">FREE 1-DAY</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                    {isNovaPrime
+                      ? '✓ Free Priority Express Shipping & 15% VIP Cash Rebate applied!'
+                      : 'Get FREE Next-Day Air Delivery & save up to 15% extra with Prime.'}
+                  </p>
+                </div>
+              </div>
+              {!isNovaPrime && (
+                <button
+                  type="button"
+                  onClick={() => setIsNovaPrimeModalOpen(true)}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer shrink-0"
+                >
+                  Join Prime
+                </button>
+              )}
+            </div>
+
+            {/* Subscribe & Save Option */}
+            <SubscribeAndSaveSelector product={product} />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 id="product-detail-buy-now-btn"
                 type="button"
-                onClick={handleBuyNow}
+                onClick={() => openOneClickBuyModal(product, quantity, selectedVariants)}
                 disabled={product.stock <= 0}
-                className="py-3 px-6 bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white rounded-2xl font-bold text-sm shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="py-3 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 disabled:bg-slate-300 text-white rounded-2xl font-black text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span>Instant 1-Click Checkout</span>
+                <Zap className="w-4 h-4 fill-white text-white" />
+                <span>⚡ Buy Now with 1-Click</span>
               </button>
 
               <button
-                id="product-detail-ai-ask-btn"
+                id="product-detail-slash-btn"
                 type="button"
-                onClick={() => setIsAiAssistantOpen(true)}
-                className="py-3 px-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl font-bold text-sm shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => slashPrice(product.id)}
+                className="py-3 px-4 bg-gradient-to-r from-red-600 via-orange-600 to-red-700 hover:from-red-700 hover:to-orange-700 text-white rounded-2xl font-black text-xs sm:text-sm shadow-md shadow-red-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Ask Nova AI Concierge</span>
+                <Swords className="w-4 h-4 text-yellow-300" />
+                <span>🗡️ Slash to ₦0 (Free Item)</span>
               </button>
             </div>
+
+            <button
+              id="product-detail-ai-ask-btn"
+              type="button"
+              onClick={() => setIsAiAssistantOpen(true)}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl font-bold text-xs shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Ask Nova AI Concierge for Instant Specs & Fit Help</span>
+            </button>
           </div>
 
           {/* Seller / Merchant Snapshot */}
@@ -857,6 +909,9 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* 3. Frequently Bought Together Bundle */}
       <FrequentlyBoughtTogether currentProduct={product} />
+
+      {/* 3.5 Compare with Similar Products Table */}
+      <CompareProductsTable currentProduct={product} />
 
       {/* 4. Tabbed Product Deep-Dive Section */}
       <div id="product-tabs-section" className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -1489,62 +1544,7 @@ export const ProductDetailPage: React.FC = () => {
           {/* TAB 4: Q&A & AI Concierge */}
           {activeTab === 'qa' && (
             <div className="space-y-6 max-w-4xl">
-              <div className="p-6 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-3xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-5 h-5 text-amber-300" />
-                    <h4 className="text-base font-extrabold">Nova AI Product Concierge</h4>
-                  </div>
-                  <p className="text-xs text-indigo-100 max-w-xl">
-                    Get instant technical assistance, compatibility checks, and product insights synthesized across specifications and real customer experiences.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsAiAssistantOpen(true)}
-                  className="px-4 py-2.5 bg-white text-indigo-900 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
-                >
-                  Open Live Chat
-                </button>
-              </div>
-
-              {/* Ask Question Form */}
-              <form onSubmit={handleCustomQuestionSubmit} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ask a question about compatibility, battery, sizing, or warranty..."
-                  value={customQuestion}
-                  onChange={(e) => setCustomQuestion(e.target.value)}
-                  className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder-slate-400 focus:outline-indigo-600"
-                />
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold shadow-xs cursor-pointer"
-                >
-                  Ask AI
-                </button>
-              </form>
-
-              {/* Q&A Thread List */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Community & AI Verified Answers
-                </h4>
-                {qaList.map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[10px] font-black">
-                        Q:
-                      </span>
-                      <strong className="text-xs font-bold text-slate-900">{item.question}</strong>
-                    </div>
-                    <div className="flex items-start gap-2 pl-4 border-l-2 border-indigo-300">
-                      <span className="text-[10px] font-black text-indigo-600">A:</span>
-                      <p className="text-xs text-slate-600 leading-relaxed">{item.answer}</p>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block pl-6">{item.date}</span>
-                  </div>
-                ))}
-              </div>
+              <CustomerQnASection productId={product.id} />
             </div>
           )}
 

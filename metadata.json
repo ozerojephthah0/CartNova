@@ -1,6 +1,6 @@
 {
-  "name": "CartNova - Modern E-Commerce Platform",
-  "description": "Temu-inspired modern e-commerce marketplace featuring vibrant flash deals, interactive lucky spin wheel coupon bundles, free bonus gift progression, factory-direct bargain zone, 90-day free returns, 24/7 live concierge, and 1-tap checkout.",
+  "name": "CartNova - Shop Like a Trillionaire",
+  "description": "CartNova modern e-commerce marketplace featuring seasonal events & holiday campaigns with guaranteed 20% discounts, vibrant flash deals, interactive lucky spin wheel coupon bundles, mystery boxes, slash it to zero, Nova Prime membership, live package tracking, 1-click buy, and 24/7 live concierge — Shop Like a Trillionaire.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

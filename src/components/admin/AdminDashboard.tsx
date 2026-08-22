@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { User, Product, Coupon } from '../../types';
+import { AdminProductModal } from './AdminProductModal';
 import {
   ShieldCheck,
   TrendingUp,
@@ -21,6 +22,11 @@ import {
   Star,
   Check,
   Search,
+  Edit2,
+  Filter,
+  Flame,
+  Layers,
+  ArrowUpRight,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -29,6 +35,7 @@ export const AdminDashboard: React.FC = () => {
     products,
     orders,
     coupons,
+    categories,
     toggleUserStatus,
     addUser,
     updateProduct,
@@ -40,6 +47,10 @@ export const AdminDashboard: React.FC = () => {
   } = useStore();
 
   const [adminTab, setAdminTab] = useState<'overview' | 'users' | 'catalog' | 'coupons'>('overview');
+
+  // Product Modal State for Admins
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // New Merchant State
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -61,14 +72,57 @@ export const AdminDashboard: React.FC = () => {
     expiresAt: '2026-12-31',
   });
 
-  // Search in catalog
+  // Catalog filters & search
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('ALL');
+  const [catalogSellerFilter, setCatalogSellerFilter] = useState('ALL');
+  const [catalogBadgeFilter, setCatalogBadgeFilter] = useState<'ALL' | 'featured' | 'flash' | 'low-stock'>('ALL');
+
+  // Quick Inline Price Editing State
+  const [inlineEditingProductId, setInlineEditingProductId] = useState<string | null>(null);
+  const [inlinePriceValue, setInlinePriceValue] = useState<string>('');
+  const [inlineOriginalPriceValue, setInlineOriginalPriceValue] = useState<string>('');
+
+  const handleStartInlinePriceEdit = (prod: Product) => {
+    setInlineEditingProductId(prod.id);
+    setInlinePriceValue(prod.price.toString());
+    setInlineOriginalPriceValue((prod.originalPrice || prod.price).toString());
+  };
+
+  const handleSaveInlinePrice = (prodId: string) => {
+    const newPrice = Number(inlinePriceValue);
+    const newOrigPrice = Number(inlineOriginalPriceValue);
+    if (!isNaN(newPrice) && newPrice > 0) {
+      const discount =
+        newOrigPrice > newPrice ? Math.round(((newOrigPrice - newPrice) / newOrigPrice) * 100) : undefined;
+      updateProduct(prodId, {
+        price: newPrice,
+        originalPrice: newOrigPrice >= newPrice ? newOrigPrice : newPrice,
+        discountPercentage: discount,
+      });
+    }
+    setInlineEditingProductId(null);
+  };
+
+  const handleCancelInlinePriceEdit = () => {
+    setInlineEditingProductId(null);
+  };
 
   // Platform Metrics
   const gmv = orders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.totalAmount : sum), 0);
   const platformRevenue = gmv * 0.1; // 10% platform take rate
   const totalOrders = orders.length;
   const aov = totalOrders > 0 ? gmv / totalOrders : 0;
+
+  const handleOpenAddProduct = () => {
+    setEditingProduct(null);
+    setIsProductModalOpen(true);
+  };
+
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setIsProductModalOpen(true);
+  };
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,12 +160,24 @@ export const AdminDashboard: React.FC = () => {
     setIsAddCouponOpen(false);
   };
 
-  const filteredCatalog = products.filter(
-    (p) =>
+  const filteredCatalog = products.filter((p) => {
+    const matchesSearch =
+      !catalogSearch ||
       p.title.toLowerCase().includes(catalogSearch.toLowerCase()) ||
       p.brand.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-      p.sellerName.toLowerCase().includes(catalogSearch.toLowerCase())
-  );
+      p.sellerName.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      p.category.toLowerCase().includes(catalogSearch.toLowerCase());
+
+    const matchesCategory = catalogCategoryFilter === 'ALL' || p.category === catalogCategoryFilter;
+    const matchesSeller = catalogSellerFilter === 'ALL' || p.sellerId === catalogSellerFilter;
+
+    let matchesBadge = true;
+    if (catalogBadgeFilter === 'featured') matchesBadge = !!p.isFeatured;
+    else if (catalogBadgeFilter === 'flash') matchesBadge = !!p.isFlashDeal;
+    else if (catalogBadgeFilter === 'low-stock') matchesBadge = p.stock <= 10;
+
+    return matchesSearch && matchesCategory && matchesSeller && matchesBadge;
+  });
 
   return (
     <div className="py-6 max-w-7xl mx-auto space-y-8">
@@ -129,21 +195,30 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <h1 className="text-2xl font-black text-white mt-1">CartNova Master Command Center</h1>
             <p className="text-xs text-slate-300">
-              Govern marketplace sellers, monitor GMV and platform take rates, approve catalog listings, and deploy promo vouchers.
+              Govern marketplace sellers, add & moderate catalog products, monitor GMV & take rates, and deploy promo vouchers.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            id="admin-add-product-header-btn"
+            onClick={handleOpenAddProduct}
+            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Product</span>
+          </button>
+
+          <button
             id="admin-add-merchant-btn"
             onClick={() => {
               setAdminTab('users');
               setIsAddUserOpen(true);
             }}
-            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer"
+            className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <Plus className="w-4 h-4" />
+            <Users className="w-4 h-4" />
             <span>Onboard Merchant</span>
           </button>
         </div>
@@ -297,7 +372,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <h4 className="text-lg font-black">All Systems Operational</h4>
               <p className="text-xs text-slate-300 leading-relaxed">
-                CartNova backend, Gemini 3.7 Flash shopping assistants, payment gateways, and inventory trackers are performing at 99.98% uptime.
+                CartNova backend, shopping assistants, payment gateways, and inventory trackers are performing at 99.98% uptime.
               </p>
               <div className="p-3 rounded-2xl bg-white/10 text-xs space-y-1">
                 <div className="flex justify-between">
@@ -308,6 +383,55 @@ export const AdminDashboard: React.FC = () => {
                   <span>Active Merchants</span>
                   <span className="font-mono font-bold">{allUsers.filter((u) => u.role === 'seller').length}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Quick Admin Action Panel */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-2xs space-y-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-4 h-4 text-purple-600" />
+                <span>Quick Administration</span>
+              </h4>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  id="admin-quick-add-product"
+                  onClick={handleOpenAddProduct}
+                  className="w-full p-3 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/80 rounded-2xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-purple-600" />
+                    <span>Add New Marketplace Product</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-purple-500" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setAdminTab('users');
+                    setIsAddUserOpen(true);
+                  }}
+                  className="w-full p-3 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-2xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-slate-600" />
+                    <span>Onboard New Merchant / User</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setAdminTab('coupons');
+                    setIsAddCouponOpen(true);
+                  }}
+                  className="w-full p-3 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-2xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-indigo-600" />
+                    <span>Create Promo Coupon</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400" />
+                </button>
               </div>
             </div>
           </div>
@@ -414,100 +538,346 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: Catalog Moderation */}
+      {/* TAB 3: Catalog Moderation & Management */}
       {adminTab === 'catalog' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-slate-900">Marketplace Catalog Moderation</h2>
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search listings by title, brand, seller..."
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs focus:outline-purple-600"
-              />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <Package className="w-5 h-5 text-purple-600" />
+                <span>Marketplace Catalog Management</span>
+                <span className="text-xs px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-full font-bold">
+                  {filteredCatalog.length} / {products.length} items
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Add official products, edit listings, configure flash deals & manage prices across all sellers.
+              </p>
+            </div>
+
+            <button
+              id="admin-add-product-catalog-btn"
+              onClick={handleOpenAddProduct}
+              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Product</span>
+            </button>
+          </div>
+
+          {/* Catalog Filter Controls Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  id="admin-catalog-search-input"
+                  type="text"
+                  placeholder="Search title, brand, seller..."
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-purple-600"
+                />
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <select
+                  value={catalogCategoryFilter}
+                  onChange={(e) => setCatalogCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-purple-600"
+                >
+                  <option value="ALL">All Categories ({products.length})</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Seller Filter */}
+              <div>
+                <select
+                  value={catalogSellerFilter}
+                  onChange={(e) => setCatalogSellerFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-purple-600"
+                >
+                  <option value="ALL">All Sellers / Sources</option>
+                  <option value="admin-official">👑 CartNova Official Store</option>
+                  {allUsers
+                    .filter((u) => u.role === 'seller')
+                    .map((seller) => (
+                      <option key={seller.id} value={seller.id}>
+                        🏪 {seller.storeName || seller.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Quick Badge Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+              <span className="text-slate-400 font-bold text-[11px] mr-1">Filter Badges:</span>
+              <button
+                onClick={() => setCatalogBadgeFilter('ALL')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                  catalogBadgeFilter === 'ALL'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                All Listings ({products.length})
+              </button>
+              <button
+                onClick={() => setCatalogBadgeFilter('featured')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  catalogBadgeFilter === 'featured'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                }`}
+              >
+                <Star className="w-3 h-3" />
+                <span>Featured ({products.filter((p) => p.isFeatured).length})</span>
+              </button>
+              <button
+                onClick={() => setCatalogBadgeFilter('flash')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  catalogBadgeFilter === 'flash'
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                }`}
+              >
+                <Zap className="w-3 h-3" />
+                <span>Flash Deals ({products.filter((p) => p.isFlashDeal).length})</span>
+              </button>
+              <button
+                onClick={() => setCatalogBadgeFilter('low-stock')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  catalogBadgeFilter === 'low-stock'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                <span>⚠️ Low Stock (&le;10) ({products.filter((p) => p.stock <= 10).length})</span>
+              </button>
             </div>
           </div>
 
+          {/* Catalog Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                   <tr>
-                    <th className="p-4">Item</th>
-                    <th className="p-4">Seller</th>
-                    <th className="p-4">Price</th>
-                    <th className="p-4">Stock</th>
-                    <th className="p-4 text-center">Featured Status</th>
+                    <th className="p-4">Product Item</th>
+                    <th className="p-4">Brand / Category</th>
+                    <th className="p-4">Seller Source</th>
+                    <th className="p-4">Price / MSRP</th>
+                    <th className="p-4">Inventory</th>
+                    <th className="p-4 text-center">Featured</th>
                     <th className="p-4 text-center">Flash Deal</th>
-                    <th className="p-4 text-right">Delete</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredCatalog.map((prod) => (
-                    <tr key={prod.id} className="hover:bg-slate-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={prod.images[0]}
-                            alt={prod.title}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 line-clamp-1">{prod.title}</p>
-                            <p className="text-slate-400 text-[10px]">{prod.category}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-700 font-medium">{prod.sellerName}</td>
-                      <td className="p-4 font-bold text-slate-900">{formatPrice(prod.price)}</td>
-                      <td className="p-4 text-slate-600 font-medium">{prod.stock} units</td>
-                      <td className="p-4 text-center">
+                  {filteredCatalog.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                        <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                        <p className="font-semibold text-slate-600">No products found matching filters</p>
                         <button
-                          onClick={() => updateProduct(prod.id, { isFeatured: !prod.isFeatured })}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                            prod.isFeatured
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
+                          onClick={handleOpenAddProduct}
+                          className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-xs inline-flex items-center gap-1 cursor-pointer"
                         >
-                          {prod.isFeatured ? '★ Featured' : 'Standard'}
-                        </button>
-                      </td>
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() =>
-                            updateProduct(prod.id, {
-                              isFlashDeal: !prod.isFlashDeal,
-                              discountPercentage: prod.isFlashDeal ? undefined : 20,
-                            })
-                          }
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                            prod.isFlashDeal
-                              ? 'bg-rose-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          {prod.isFlashDeal ? '⚡ Flash Deal' : 'No'}
-                        </button>
-                      </td>
-                      <td className="p-4 text-right">
-                        <button
-                          onClick={() => {
-                            if (confirm(`Remove listing "${prod.title}" from platform?`)) {
-                              deleteProduct(prod.id);
-                            }
-                          }}
-                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add New Product</span>
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredCatalog.map((prod) => (
+                      <tr key={prod.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={prod.images[0]}
+                              alt={prod.title}
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 line-clamp-1 hover:text-purple-600 transition-colors">
+                                {prod.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-slate-400 font-mono">ID: {prod.id}</span>
+                                {prod.rating && (
+                                  <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
+                                    ★ {prod.rating}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <p className="font-semibold text-slate-800">{prod.brand}</p>
+                          <span className="text-slate-400 text-[10px]">{prod.category}</span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1.5">
+                            {prod.sellerId === 'admin-official' ? (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-md">
+                                👑 CartNova HQ
+                              </span>
+                            ) : (
+                              <span className="text-slate-700 font-medium truncate max-w-[120px]">
+                                {prod.sellerName}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          {inlineEditingProductId === prod.id ? (
+                            <div className="space-y-1.5 min-w-[150px] p-2 bg-purple-50 rounded-xl border border-purple-200">
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 block">Price (₦)</label>
+                                <input
+                                  id={`admin-inline-price-input-${prod.id}`}
+                                  type="number"
+                                  min={100}
+                                  value={inlinePriceValue}
+                                  onChange={(e) => setInlinePriceValue(e.target.value)}
+                                  className="w-full px-2 py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-purple-600"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
+                                    if (e.key === 'Escape') handleCancelInlinePriceEdit();
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 block">MSRP / Original (₦)</label>
+                                <input
+                                  type="number"
+                                  min={100}
+                                  value={inlineOriginalPriceValue}
+                                  onChange={(e) => setInlineOriginalPriceValue(e.target.value)}
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-purple-600"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
+                                    if (e.key === 'Escape') handleCancelInlinePriceEdit();
+                                  }}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1 pt-1">
+                                <button
+                                  id={`admin-save-price-${prod.id}`}
+                                  onClick={() => handleSaveInlinePrice(prod.id)}
+                                  className="flex-1 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[10px] font-bold cursor-pointer"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelInlinePriceEdit}
+                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[10px] font-bold cursor-pointer"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group/price flex items-start gap-1.5">
+                              <div>
+                                <p className="font-bold text-slate-900">{formatPrice(prod.price)}</p>
+                                {prod.originalPrice && prod.originalPrice > prod.price && (
+                                  <p className="text-[10px] text-slate-400 line-through">
+                                    {formatPrice(prod.originalPrice)}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                id={`admin-quick-price-btn-${prod.id}`}
+                                onClick={() => handleStartInlinePriceEdit(prod)}
+                                title="Change Price"
+                                className="opacity-0 group-hover/price:opacity-100 p-1 text-purple-600 hover:bg-purple-50 rounded-md transition-opacity cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              prod.stock <= 5
+                                ? 'bg-rose-100 text-rose-700 font-black'
+                                : prod.stock <= 15
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-50 text-emerald-700'
+                            }`}
+                          >
+                            {prod.stock} units
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={() => updateProduct(prod.id, { isFeatured: !prod.isFeatured })}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                              prod.isFeatured
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {prod.isFeatured ? '★ Featured' : 'Standard'}
+                          </button>
+                        </td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={() =>
+                              updateProduct(prod.id, {
+                                isFlashDeal: !prod.isFlashDeal,
+                                discountPercentage: prod.isFlashDeal ? undefined : 20,
+                              })
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                              prod.isFlashDeal
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {prod.isFlashDeal ? '⚡ Flash' : 'Off'}
+                          </button>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              id={`admin-edit-product-${prod.id}`}
+                              onClick={() => handleOpenEditProduct(prod)}
+                              title="Edit product details & pricing"
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              id={`admin-delete-product-${prod.id}`}
+                              onClick={() => {
+                                if (confirm(`Remove listing "${prod.title}" from platform?`)) {
+                                  deleteProduct(prod.id);
+                                }
+                              }}
+                              title="Delete product"
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -573,6 +943,13 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal: Admin Add / Edit Product */}
+      <AdminProductModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        productToEdit={editingProduct}
+      />
 
       {/* Modal: Add User */}
       {isAddUserOpen && (

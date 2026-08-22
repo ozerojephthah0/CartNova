@@ -39,6 +39,11 @@ import {
   Bell,
   LifeBuoy,
   Tablet,
+  Swords,
+  Crown,
+  Truck,
+  Calendar,
+  Percent,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NotificationPopover } from '../customer/NotificationPopover';
@@ -82,6 +87,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
     executeSearch,
     setIsSearchModalOpen,
     setQuickViewProduct,
+    setIsSlashModalOpen,
+    setIsMysteryBoxOpen,
+    setIsNovaPrimeModalOpen,
+    isNovaPrime,
+    setIsTrackingModalOpen,
   } = useStore();
 
   const [searchFocused, setSearchFocused] = useState(false);
@@ -286,7 +296,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 bg-yellow-400 text-orange-950 px-2 py-0.5 rounded font-black text-[11px] uppercase tracking-wide animate-pulse">
-              <Zap className="w-3 h-3 fill-orange-800 text-orange-800" /> TEMU FLASH
+              <Zap className="w-3 h-3 fill-orange-800 text-orange-800" /> CARTNOVA FLASH
             </span>
             <span className="hidden sm:inline text-white font-medium">
               🎁 Spin the Lucky Wheel for $100 Voucher Bundle • 🚚 Free Shipping On All Orders!
@@ -370,15 +380,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
               }}
               className="flex items-center gap-2.5 text-left group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform border border-amber-300/40">
                 <ShoppingCart className="w-5 h-5 text-white" />
               </div>
               <div>
-                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 bg-clip-text text-transparent">
-                  Cart<span className="text-indigo-600">Nova</span>
+                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 via-amber-600 to-slate-900 dark:to-white bg-clip-text text-transparent">
+                  Cart<span className="text-orange-600">Nova</span>
                 </span>
-                <span className="block text-[10px] font-medium uppercase tracking-widest text-slate-500 -mt-1">
-                  Digital Store
+                <span className="block text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 -mt-1">
+                  Shop Like a Trillionaire
                 </span>
               </div>
             </button>
@@ -802,7 +812,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
             </div>
 
             {/* Auth / Profile Area */}
-            {activeRole === 'customer' && !isLoggedIn ? (
+            {!isLoggedIn ? (
               <div className="flex items-center gap-1.5 ml-1">
                 <button
                   id="header-sign-in-btn"
@@ -1161,24 +1171,65 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
                 })}
               </div>
 
-              {/* Quick Specials & Support */}
-              <div className="hidden lg:flex items-center gap-3 shrink-0 pl-2 border-l border-slate-100">
+              {/* Quick Specials, Amazon & Temu Features */}
+              <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-100 dark:border-slate-800">
                 <button
-                  onClick={() => {
-                    setActiveCustomerTab('shop');
-                    const el = document.getElementById('flash-deals-section');
-                    el?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="flex items-center gap-1 text-[11px] font-bold text-amber-600 hover:text-amber-700 cursor-pointer"
+                  id="subnav-seasonal-events-btn"
+                  onClick={() => setActiveCustomerTab('seasonal-events')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black transition-all cursor-pointer shadow-xs ${
+                    activeCustomerTab === 'seasonal-events'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 ring-2 ring-amber-400 font-extrabold'
+                      : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-400/40 hover:from-amber-500/30 hover:to-orange-500/30'
+                  }`}
                 >
-                  <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  <span>Flash Deals</span>
+                  <Calendar className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                  <span>Seasonal Events</span>
+                  <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+                    20% OFF
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setIsSlashModalOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-600 to-red-600 text-white text-[11px] font-black hover:from-orange-700 hover:to-red-700 shadow-xs transition-all cursor-pointer"
+                >
+                  <Swords className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>Slash to ₦0</span>
+                  <span className="bg-yellow-400 text-slate-950 text-[9px] font-black px-1 rounded">FREE</span>
+                </button>
+
+                <button
+                  onClick={() => setIsMysteryBoxOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black hover:from-purple-700 hover:to-indigo-700 shadow-xs transition-all cursor-pointer"
+                >
+                  <Gift className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>Mystery Box</span>
+                </button>
+
+                <button
+                  onClick={() => setIsNovaPrimeModalOpen(true)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black transition-all cursor-pointer ${
+                    isNovaPrime
+                      ? 'bg-blue-600 text-white ring-1 ring-blue-400'
+                      : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100'
+                  }`}
+                >
+                  <Crown className={`w-3.5 h-3.5 ${isNovaPrime ? 'text-yellow-300 fill-yellow-300' : 'text-blue-600'}`} />
+                  <span>{isNovaPrime ? 'Prime Active 👑' : 'Nova Prime'}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsTrackingModalOpen(true)}
+                  className="hidden md:flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <Truck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Live Tracking</span>
                 </button>
 
                 <button
                   id="subnav-support-btn"
                   onClick={() => setActiveCustomerTab('support')}
-                  className={`flex items-center gap-1 text-[11px] font-bold cursor-pointer transition-colors ${
+                  className={`hidden lg:flex items-center gap-1 text-[11px] font-bold cursor-pointer transition-colors ${
                     activeCustomerTab === 'support'
                       ? 'text-indigo-600'
                       : 'text-slate-600 hover:text-indigo-600'

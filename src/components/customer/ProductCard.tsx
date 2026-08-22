@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { Star, ShoppingCart, Heart, Eye, Zap, Truck, Flame } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Eye, Zap, Truck, Flame, Crown, Swords } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ProductCardProps {
@@ -17,6 +17,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
     setQuickViewProduct,
     viewProductDetail,
     formatPrice,
+    openOneClickBuyModal,
+    slashPrice,
+    isNovaPrime,
   } = useStore();
 
   const isFavorited = isInWishlist(product.id);
@@ -153,7 +156,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
             referrerPolicy="no-referrer"
           />
 
-          {/* Temu Discount & Promo Badges */}
+          {/* CartNova Discount & Promo Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
             {product.discountPercentage && (
               <span className="bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-xs">
@@ -243,9 +246,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
         </div>
       </div>
 
-      {/* Pricing & Add to Cart */}
-      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
-        <div>
+      {/* Pricing & Quick Actions */}
+      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
             <span className="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400">
               {formatPrice(product.price)}
@@ -256,18 +259,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, viewMode = 'g
               </span>
             )}
           </div>
+
+          <div className="flex items-center gap-1">
+            <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded inline-flex items-center gap-0.5">
+              <Crown className="w-2.5 h-2.5 text-yellow-300" />
+              <span>PRIME</span>
+            </span>
+          </div>
         </div>
 
-        <button
-          id={`add-cart-card-${product.id}`}
-          onClick={() => addToCart(product, 1)}
-          disabled={product.stock <= 0}
-          className="p-2 sm:px-3 sm:py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95 flex items-center gap-1 font-bold text-xs shrink-0"
-          aria-label={`Add ${product.title} to cart`}
-        >
-          <ShoppingCart className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Add</span>
-        </button>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            id={`add-cart-card-${product.id}`}
+            onClick={() => addToCart(product, 1)}
+            disabled={product.stock <= 0}
+            className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-40 rounded-xl transition-all font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+            aria-label={`Add ${product.title} to cart`}
+          >
+            <ShoppingCart className="w-3.5 h-3.5 text-orange-500" />
+            <span>Add</span>
+          </button>
+
+          <button
+            id={`oneclick-buy-card-${product.id}`}
+            onClick={() => openOneClickBuyModal(product, 1)}
+            disabled={product.stock <= 0}
+            className="p-1.5 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 disabled:opacity-40 text-white rounded-xl transition-all shadow-xs font-black text-[11px] flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+            title="1-Click Instant Buy"
+          >
+            <Zap className="w-3.5 h-3.5 fill-white" />
+            <span>1-Click</span>
+          </button>
+        </div>
       </div>
     </motion.div>
   );

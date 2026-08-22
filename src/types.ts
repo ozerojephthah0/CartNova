@@ -288,7 +288,7 @@ export interface FaqItem {
   tags: string[];
 }
 
-export type ThemeMode = 'temu' | 'light' | 'dark' | 'midnight' | 'warm-sepia' | 'cyberpunk';
+export type ThemeMode = 'cartnova' | 'temu' | 'light' | 'dark' | 'midnight' | 'warm-sepia' | 'cyberpunk';
 
 export interface ThemeOption {
   id: ThemeMode;
@@ -299,5 +299,133 @@ export interface ThemeOption {
   badge: string;
   bgHex: string;
   accentHex: string;
+}
+
+export interface FriendSlashAssist {
+  id: string;
+  name: string;
+  avatar: string;
+  amount: number;
+  time: string;
+}
+
+export interface SlashGameItem {
+  id: string;
+  productId: string;
+  title: string;
+  image: string;
+  originalPrice: number;
+  currentPrice: number;
+  slashedTotal: number;
+  percentageSlashed: number;
+  slashesLeft: number;
+  expiresAt: string;
+  status: 'active' | 'completed' | 'claimed';
+  assists: FriendSlashAssist[];
+  product?: Product;
+}
+
+export type MysteryBoxRarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
+
+export interface MysteryBoxPrize {
+  id: string;
+  title: string;
+  image: string;
+  retailPrice: number;
+  rarity: MysteryBoxRarity;
+  chance: number; // percentage
+  badge?: string;
+}
+
+export interface MysteryBoxTier {
+  id: string;
+  name: string;
+  tier: 'free' | 'cyber' | 'gamer' | 'diamond';
+  tagline: string;
+  price: number;
+  color: string;
+  boxImage: string;
+  guaranteedMinRarity: MysteryBoxRarity;
+  prizes: MysteryBoxPrize[];
+}
+
+export interface TeamBuyGroup {
+  id: string;
+  productId: string;
+  product: Product;
+  teamPrice: number;
+  soloPrice: number;
+  discountPercent: number;
+  requiredMembers: number;
+  currentMembers: Array<{
+    id: string;
+    name: string;
+    avatar: string;
+    joinedAt: string;
+  }>;
+  expiresAt: string;
+  status: 'open' | 'completed';
+}
+
+export interface ProductQuestion {
+  id: string;
+  productId: string;
+  question: string;
+  askedBy: string;
+  date: string;
+  votes: number;
+  answers: Array<{
+    id: string;
+    answeredBy: string;
+    isSeller?: boolean;
+    isVerifiedBuyer?: boolean;
+    answer: string;
+    date: string;
+    helpfulVotes: number;
+  }>;
+}
+
+export interface SubscriptionItem {
+  id: string;
+  productId: string;
+  product: Product;
+  frequencyMonths: number;
+  discountPercent: number;
+  pricePerDelivery: number;
+  nextDeliveryDate: string;
+  status: 'active' | 'paused' | 'cancelled';
+  createdAt: string;
+}
+
+export type EventSeason = 'holiday' | 'national' | 'cultural' | 'shopping_festival' | 'family' | 'seasonal';
+export type EventStatus = 'live_now' | 'upcoming' | 'early_access';
+
+export interface SeasonalEvent {
+  id: string;
+  name: string;
+  shortName: string;
+  slug: string;
+  categoryType: EventSeason;
+  status: EventStatus;
+  discountPercent: number; // Always 20 as requested
+  couponCode: string;
+  dateRange: string;
+  month: string;
+  exactDateInfo: string;
+  tagline: string;
+  description: string;
+  highlightPerks: string[];
+  bannerImage: string;
+  themeColor: {
+    badgeBg: string;
+    badgeText: string;
+    gradient: string;
+    accentColor: string;
+    border: string;
+  };
+  targetCountdownDate: string;
+  featuredCategory: string;
+  curatedProductIds: string[];
+  giftGuideTips: string[];
 }
 

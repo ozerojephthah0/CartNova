@@ -30,13 +30,13 @@ interface Prize {
 const PRIZES: Prize[] = [
   {
     id: 'p1',
-    code: 'TEMU100',
+    code: 'CARTNOVA100',
     label: '$100 BUNDLE',
     sublabel: 'Big Winner Voucher',
     color: '#ff5000',
     textColor: '#ffffff',
     icon: 'bundle',
-    discountDescription: '₦100,000 Temu Big Winner Coupon Bundle',
+    discountDescription: '₦100,000 CartNova Big Winner Coupon Bundle',
   },
   {
     id: 'p2',
@@ -60,7 +60,7 @@ const PRIZES: Prize[] = [
   },
   {
     id: 'p4',
-    code: 'TEMU25',
+    code: 'CARTNOVA25',
     label: '$25 REWARD',
     sublabel: 'No Minimum Spend',
     color: '#9333ea',
@@ -70,13 +70,13 @@ const PRIZES: Prize[] = [
   },
   {
     id: 'p5',
-    code: 'BILLIONAIRE',
+    code: 'TRILLIONAIRE',
     label: '50% OFF',
-    sublabel: 'Shop Like a Billionaire',
+    sublabel: 'Shop Like a Trillionaire',
     color: '#ea580c',
     textColor: '#ffffff',
     icon: 'zap',
-    discountDescription: '50% OFF "Shop Like a Billionaire" promo',
+    discountDescription: '50% OFF "Shop Like a Trillionaire" promo',
   },
   {
     id: 'p6',
@@ -165,8 +165,8 @@ export const TemuSpinWheelModal: React.FC<TemuSpinWheelModalProps> = ({ isOpen, 
     setIsSpinning(true);
     setWinningPrize(null);
 
-    // Pick a high-value prize (Temu always gives great odds!)
-    // 0 = TEMU100, 1 = SLASH90, 4 = BILLIONAIRE
+    // Pick a high-value prize (CartNova always gives great odds!)
+    // 0 = CARTNOVA100, 1 = SLASH90, 4 = TRILLIONAIRE
     const winningIndex = Math.random() > 0.4 ? 0 : Math.floor(Math.random() * PRIZES.length);
     const targetPrize = PRIZES[winningIndex];
 
@@ -237,7 +237,7 @@ export const TemuSpinWheelModal: React.FC<TemuSpinWheelModalProps> = ({ isOpen, 
           </button>
 
           <div className="px-3 py-1 bg-yellow-400 text-orange-950 rounded-full font-black text-xs uppercase tracking-wider shadow-md animate-bounce">
-            🎁 FREE TEMU SPIN
+            🎁 FREE CARTNOVA SPIN
           </div>
 
           <button
@@ -254,7 +254,7 @@ export const TemuSpinWheelModal: React.FC<TemuSpinWheelModalProps> = ({ isOpen, 
             SPIN & WIN $100 BUNDLE!
           </h2>
           <p className="text-xs sm:text-sm font-semibold text-orange-100">
-            Shop Like a Billionaire • 100% Guaranteed Win Every Spin
+            Shop Like a Trillionaire • 100% Guaranteed Win Every Spin
           </p>
         </div>
 

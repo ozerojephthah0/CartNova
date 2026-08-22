@@ -109,6 +109,7 @@ export const OrdersView: React.FC = () => {
     products,
     addToast,
     viewProductDetail,
+    setIsTrackingModalOpen,
   } = useStore();
 
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
@@ -447,6 +448,14 @@ export const OrdersView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition-all"
+          >
+            <Compass className="w-4 h-4 animate-spin text-emerald-200" />
+            <span>Live GPS Radar Map</span>
+          </button>
+
           <button
             onClick={() => setActiveCustomerTab('shop')}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition-colors"

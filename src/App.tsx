@@ -14,6 +14,9 @@ import { WishlistView } from './components/customer/WishlistView';
 import { CustomerProfileView } from './components/customer/CustomerProfileView';
 import { NotificationsView } from './components/customer/NotificationsView';
 import { CustomerSupportView } from './components/customer/CustomerSupportView';
+import { SeasonalEventsView } from './components/customer/SeasonalEventsView';
+import { SeasonalEventBanner } from './components/customer/SeasonalEventBanner';
+import { SeasonalEventModal } from './components/customer/SeasonalEventModal';
 import { LiveSupportWidget } from './components/customer/LiveSupportWidget';
 import { ProductDetailPage } from './components/customer/ProductDetailPage';
 import { ProductDetailModal } from './components/customer/ProductDetailModal';
@@ -23,10 +26,15 @@ import { AiAssistantModal } from './components/customer/AiAssistantModal';
 import { AuthModal } from './components/customer/AuthModal';
 import { QuickSearchModal } from './components/customer/QuickSearchModal';
 
-// Temu Components
+// Temu & Amazon Features
 import { TemuSpinWheelModal } from './components/customer/TemuSpinWheelModal';
 import { TemuPriceSlashBar } from './components/customer/TemuPriceSlashBar';
 import { TemuBargainZone } from './components/customer/TemuBargainZone';
+import { PriceSlashModal } from './components/customer/PriceSlashModal';
+import { MysteryBoxModal } from './components/customer/MysteryBoxModal';
+import { NovaPrimeModal } from './components/customer/NovaPrimeModal';
+import { OneClickBuyModal } from './components/customer/OneClickBuyModal';
+import { LivePackageTrackerModal } from './components/customer/LivePackageTrackerModal';
 
 // Seller & Admin
 import { SellerDashboard } from './components/seller/SellerDashboard';
@@ -64,6 +72,9 @@ const MainContent: React.FC = () => {
           <>
             {activeCustomerTab === 'shop' && (
               <div>
+                {/* Seasonal Events Promotional Banner Strip (20% OFF Guaranteed) */}
+                <SeasonalEventBanner />
+
                 {/* Temu Trust & Price Slash Bar */}
                 <TemuPriceSlashBar onOpenSpinWheel={() => setIsSpinWheelOpen(true)} />
 
@@ -83,6 +94,8 @@ const MainContent: React.FC = () => {
                 <ProductGrid />
               </div>
             )}
+
+            {activeCustomerTab === 'seasonal-events' && <SeasonalEventsView />}
 
             {activeCustomerTab === 'product-detail' && <ProductDetailPage />}
 
@@ -138,18 +151,18 @@ const MainContent: React.FC = () => {
                 <span className="text-lg font-black text-white tracking-tight">CartNova</span>
               </div>
               <p className="text-slate-400 leading-relaxed text-[11px]">
-                The next-generation marketplace — Shop like a billionaire with factory direct pricing, free shipping, and 90-day free returns.
+                The next-generation marketplace — Shop like a trillionaire with factory direct pricing, free shipping, and 90-day free returns.
               </p>
               <div className="flex items-center gap-2 text-orange-400 font-semibold pt-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Shop Like a Billionaire</span>
+                <span>Shop Like a Trillionaire</span>
               </div>
             </div>
 
             {/* Marketplace */}
             <div className="space-y-2.5">
               <span className="font-bold text-white uppercase tracking-wider text-[11px] block">
-                Temu Categories
+                CartNova Categories
               </span>
               <ul className="space-y-1.5 text-slate-400">
                 <li>
@@ -195,6 +208,18 @@ const MainContent: React.FC = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li>
                   <button
+                    onClick={() => {
+                      setActiveCustomerTab('seasonal-events');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="hover:text-amber-300 text-amber-400 transition-colors cursor-pointer font-bold flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>🎉 Seasonal Events (20% OFF)</span>
+                  </button>
+                </li>
+                <li>
+                  <button
                     onClick={() => setIsSpinWheelOpen(true)}
                     className="hover:text-yellow-300 text-yellow-400 transition-colors cursor-pointer font-bold flex items-center gap-1.5"
                   >
@@ -229,7 +254,7 @@ const MainContent: React.FC = () => {
             {/* Buyer Trust Guarantees */}
             <div className="space-y-2.5">
               <span className="font-bold text-white uppercase tracking-wider text-[11px] block">
-                Temu Guarantees
+                CartNova Guarantees
               </span>
               <ul className="space-y-2 text-slate-400">
                 <li className="flex items-center gap-2">
@@ -249,7 +274,7 @@ const MainContent: React.FC = () => {
           </div>
 
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
-            <p>© 2026 CartNova • Shop Like a Billionaire. All rights reserved.</p>
+            <p>© 2026 CartNova • Shop Like a Trillionaire. All rights reserved.</p>
             <div className="flex items-center gap-2 bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-slate-300 font-medium text-[11px]">
@@ -269,6 +294,12 @@ const MainContent: React.FC = () => {
       {/* Global Modals & Drawers */}
       <RoleSwitcher isOpen={isRoleSwitcherOpen} onClose={() => setIsRoleSwitcherOpen(false)} />
       <TemuSpinWheelModal isOpen={isSpinWheelOpen} onClose={() => setIsSpinWheelOpen(false)} />
+      <PriceSlashModal />
+      <MysteryBoxModal />
+      <NovaPrimeModal />
+      <SeasonalEventModal />
+      <OneClickBuyModal />
+      <LivePackageTrackerModal />
       <AuthModal />
       <QuickSearchModal />
       <CartDrawer />

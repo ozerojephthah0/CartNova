@@ -41,7 +41,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenSpinWheel }) => {
 
   return (
     <div className="relative mb-8">
-      {/* Main Temu Hero Card */}
+      {/* Main CartNova Hero Card */}
       <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-orange-600 via-amber-600 to-orange-700 text-white shadow-2xl border-4 border-yellow-300">
         {/* Subtle Decorative Glows */}
         <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl pointer-events-none" />
@@ -52,7 +52,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenSpinWheel }) => {
           <div className="lg:col-span-7 space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-yellow-400 text-orange-950 text-xs font-black tracking-wide shadow-md uppercase">
               <Zap className="w-4 h-4 fill-orange-700 text-orange-700 animate-bounce" />
-              <span>TEMU MEGA SAVINGS • SHOP LIKE A BILLIONAIRE</span>
+              <span>CARTNOVA MEGA SAVINGS • SHOP LIKE A TRILLIONAIRE</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-yellow-100 leading-tight drop-shadow-md">
@@ -131,7 +131,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenSpinWheel }) => {
               <div className="relative h-56 sm:h-64 rounded-2xl overflow-hidden bg-slate-100 mb-4">
                 <img
                   src={featuredProduct?.images[0] || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80"}
-                  alt={featuredProduct?.title || "Temu Lightning Deal"}
+                  alt={featuredProduct?.title || "CartNova Lightning Deal"}
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
                 />
@@ -147,7 +147,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenSpinWheel }) => {
 
               <div>
                 <p className="text-[11px] text-orange-600 font-extrabold uppercase tracking-wider">
-                  Temu Top Seller • 1-Click Fast Checkout
+                  CartNova Top Seller • 1-Click Fast Checkout
                 </p>
                 <h2 className="text-base font-extrabold text-slate-900 mt-0.5 group-hover:text-orange-600 transition-colors truncate">
                   {featuredProduct?.title}
