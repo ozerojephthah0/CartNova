@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import {
   X,
@@ -28,6 +28,8 @@ export const AuthModal: React.FC = () => {
     closeAuthModal,
     authModalMode,
     setAuthModalMode,
+    authModalRole,
+    setAuthModalRole,
     loginWithEmail,
     signupWithEmail,
     loginWithGoogle,
@@ -37,8 +39,15 @@ export const AuthModal: React.FC = () => {
 
   // Role selection state: 'customer' or 'admin'
   const [selectedRole, setSelectedRole] = useState<'customer' | 'admin'>(() =>
-    activeRole === 'admin' ? 'admin' : 'customer'
+    authModalRole || (activeRole === 'admin' ? 'admin' : 'customer')
   );
+
+  // Sync role when modal opens with specific target role
+  useEffect(() => {
+    if (authModalRole) {
+      setSelectedRole(authModalRole);
+    }
+  }, [authModalRole, isAuthModalOpen]);
 
   // Form states
   const [email, setEmail] = useState('');

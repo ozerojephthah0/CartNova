@@ -88,7 +88,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenSpinWheel }) => {
                   className="px-5 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-orange-950 rounded-xl font-black text-sm border-2 border-yellow-200 shadow-xl flex items-center gap-2 transition-all cursor-pointer transform hover:scale-105 active:scale-95 animate-pulse"
                 >
                   <Gift className="w-4 h-4 text-orange-700" />
-                  <span>Spin for $100 Bundle</span>
+                  <span>Free Spins: Win Cash, Tech & Food</span>
                 </button>
               )}
             </div>

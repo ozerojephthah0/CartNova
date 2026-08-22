@@ -86,6 +86,26 @@ const IMAGE_PRESETS = [
     url: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&auto=format&fit=crop&q=80',
   },
   {
+    category: 'Food & Gourmet Snacks',
+    name: 'Belgian Truffles Box',
+    url: 'https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    category: 'Food & Gourmet Snacks',
+    name: 'Gourmet Matcha Treats',
+    url: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    category: 'Food & Gourmet Snacks',
+    name: 'Specialty Coffee Beans',
+    url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    category: 'Food & Gourmet Snacks',
+    name: 'Truffle Oil & Pasta',
+    url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&auto=format&fit=crop&q=80',
+  },
+  {
     category: 'Seasonal Deals',
     name: 'Holiday Gift Package',
     url: 'https://images.unsplash.com/photo-1513297887119-d46091b24bfa?w=800&auto=format&fit=crop&q=80',

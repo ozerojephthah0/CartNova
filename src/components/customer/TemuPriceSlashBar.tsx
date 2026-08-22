@@ -129,7 +129,7 @@ export const TemuPriceSlashBar: React.FC<{ onOpenSpinWheel: () => void }> = ({ o
             className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-orange-950 rounded-xl font-black text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
           >
             <Gift className="w-4 h-4 text-orange-700 animate-spin" />
-            <span>CLAIM $100 COUPON BUNDLE</span>
+            <span>FREE SPINS: WIN CASH, TECH & FOOD</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

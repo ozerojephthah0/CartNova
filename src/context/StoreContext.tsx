@@ -28,6 +28,8 @@ import {
   ProductQuestion,
   SubscriptionItem,
   SeasonalEvent,
+  SpinWheelPrize,
+  ClaimedSpinReward,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -45,6 +47,7 @@ import {
   INITIAL_PRODUCT_QUESTIONS,
   INITIAL_SUBSCRIPTIONS,
   SEASONAL_EVENTS,
+  INITIAL_SPIN_PRIZES,
 } from '../data/initialData';
 
 export type CurrencyCode = 'NGN' | 'USD' | 'EUR' | 'GBP';
@@ -70,13 +73,15 @@ interface StoreContextType {
   allUsers: UserProfile[];
   switchRole: (role: UserRole, userId?: string) => void;
 
-  // Customer Authentication
+  // Authentication & Access Control
   isLoggedIn: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   authModalMode: 'login' | 'signup';
   setAuthModalMode: (mode: 'login' | 'signup') => void;
-  openAuthModal: (mode?: 'login' | 'signup') => void;
+  authModalRole: 'customer' | 'admin';
+  setAuthModalRole: (role: 'customer' | 'admin') => void;
+  openAuthModal: (mode?: 'login' | 'signup', role?: 'customer' | 'admin') => void;
   closeAuthModal: () => void;
   loginWithEmail: (email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
   signupWithEmail: (name: string, email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
@@ -283,6 +288,25 @@ interface StoreContextType {
     details?: string
   ) => { success: boolean; rmaNumber: string; ticket: SupportTicket };
 
+  // Free Spins & Lucky Spin Wheel Rewards (Money, Products, Food, Passes)
+  freeSpinsLeft: number;
+  setFreeSpinsLeft: React.Dispatch<React.SetStateAction<number>>;
+  replenishFreeSpins: (count?: number) => void;
+  decrementFreeSpins: () => void;
+  walletBalance: number;
+  setWalletBalance: React.Dispatch<React.SetStateAction<number>>;
+  creditWallet: (amount: number, reason?: string) => void;
+  debitWallet: (amount: number) => boolean;
+  claimedSpinRewards: ClaimedSpinReward[];
+  setClaimedSpinRewards: React.Dispatch<React.SetStateAction<ClaimedSpinReward[]>>;
+  spinWheelPrizes: SpinWheelPrize[];
+  claimSpinReward: (prize: SpinWheelPrize) => { success: boolean; message: string; addedToWallet?: number; addedToCart?: boolean };
+  claimFreePrizeProductToCart: (productInfo: { id: string; title: string; image: string; originalPrice: number; category: string; description: string }) => void;
+  isSpinWheelOpen: boolean;
+  setIsSpinWheelOpen: (open: boolean) => void;
+  openSpinWheel: () => void;
+  closeSpinWheel: () => void;
+
   // Currency
   currentCurrency: CurrencyInfo;
   setCurrency: (code: CurrencyCode) => void;
@@ -328,6 +352,9 @@ const STORAGE_KEYS = {
   QUESTIONS: 'cartnova_questions_v2',
   SUBSCRIPTIONS: 'cartnova_subscriptions_v2',
   SEASONAL_EVENTS: 'cartnova_seasonal_events_v2',
+  FREE_SPINS: 'cartnova_free_spins_v3',
+  WALLET_BALANCE: 'cartnova_wallet_balance_v3',
+  CLAIMED_SPIN_REWARDS: 'cartnova_claimed_spin_rewards_v3',
 };
 
 const DEFAULT_POPULAR_SEARCHES = [
@@ -465,9 +492,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Auth modal state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [authModalRole, setAuthModalRole] = useState<'customer' | 'admin'>('customer');
 
-  const openAuthModal = (mode: 'login' | 'signup' = 'login') => {
+  const openAuthModal = (mode: 'login' | 'signup' = 'login', role?: 'customer' | 'admin') => {
     setAuthModalMode(mode);
+    if (role) {
+      setAuthModalRole(role);
+    }
     setIsAuthModalOpen(true);
   };
 
@@ -2555,6 +2586,155 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addToast('info', 'Subscription Cancelled', 'Your auto-delivery subscription was removed.');
   };
 
+  // Free Spins & Lucky Spin Wheel State & Logic
+  const [freeSpinsLeft, setFreeSpinsLeft] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FREE_SPINS);
+      return saved ? Math.max(0, parseInt(saved, 10)) : 5;
+    } catch {
+      return 5;
+    }
+  });
+
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.WALLET_BALANCE);
+      return saved ? Math.max(0, parseInt(saved, 10)) : 50000;
+    } catch {
+      return 50000;
+    }
+  });
+
+  const [claimedSpinRewards, setClaimedSpinRewards] = useState<ClaimedSpinReward[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CLAIMED_SPIN_REWARDS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isSpinWheelOpen, setIsSpinWheelOpen] = useState<boolean>(false);
+  const openSpinWheel = () => setIsSpinWheelOpen(true);
+  const closeSpinWheel = () => setIsSpinWheelOpen(false);
+
+  const replenishFreeSpins = (count = 3) => {
+    setFreeSpinsLeft((prev) => {
+      const updated = prev + count;
+      try {
+        localStorage.setItem(STORAGE_KEYS.FREE_SPINS, updated.toString());
+      } catch {}
+      return updated;
+    });
+    addToast('success', '🎰 Free Spins Reloaded!', `+${count} Free Spins added to your balance! Spin to win real cash, tech products & gourmet food.`);
+  };
+
+  const decrementFreeSpins = () => {
+    setFreeSpinsLeft((prev) => {
+      const updated = Math.max(0, prev - 1);
+      try {
+        localStorage.setItem(STORAGE_KEYS.FREE_SPINS, updated.toString());
+      } catch {}
+      return updated;
+    });
+  };
+
+  const creditWallet = (amount: number, reason?: string) => {
+    if (amount <= 0) return;
+    setWalletBalance((prev) => {
+      const updated = prev + amount;
+      try {
+        localStorage.setItem(STORAGE_KEYS.WALLET_BALANCE, updated.toString());
+      } catch {}
+      return updated;
+    });
+    addToast('success', '💰 Wallet Credited!', `₦${amount.toLocaleString()} deposited to your CartNova Wallet. ${reason || ''}`);
+  };
+
+  const debitWallet = (amount: number): boolean => {
+    if (walletBalance < amount) return false;
+    setWalletBalance((prev) => {
+      const updated = prev - amount;
+      try {
+        localStorage.setItem(STORAGE_KEYS.WALLET_BALANCE, updated.toString());
+      } catch {}
+      return updated;
+    });
+    return true;
+  };
+
+  const claimFreePrizeProductToCart = (productInfo: { id: string; title: string; image: string; originalPrice: number; category: string; description: string }) => {
+    const prizeProduct: Product = {
+      id: `free-spin-win-${productInfo.id}-${Date.now()}`,
+      title: `[FREE PRIZE WIN] ${productInfo.title}`,
+      slug: `free-spin-${productInfo.id}`,
+      description: productInfo.description || 'Exclusive Free Spin Wheel Won Reward with 100% Free Claim & Shipping',
+      shortDescription: 'Free Spin Wheel Winner Reward Item',
+      price: 0,
+      originalPrice: productInfo.originalPrice,
+      discountPercentage: 100,
+      category: productInfo.category || 'Special Free Gifts',
+      brand: 'CartNova Lucky Spin',
+      images: [productInfo.image],
+      rating: 5.0,
+      reviewCount: 780,
+      stock: 100,
+      sellerId: 'seller-cartnova-rewards',
+      sellerName: 'CartNova Free Prize Hub',
+      tags: ['free spin reward', 'lucky winner', 'food', 'product', 'prize'],
+      specs: { 'Prize Status': '100% Free Prize', 'Dispatch': 'Instant Zero-Cost Priority Shipping' },
+      createdAt: new Date().toISOString(),
+    };
+    addToCart(prizeProduct, 1);
+    addToast('success', '🎁 Free Prize Added to Cart!', `${productInfo.title} has been added to your shopping cart for ₦0.00!`);
+    setIsCartOpen(true);
+  };
+
+  const claimSpinReward = (prize: SpinWheelPrize) => {
+    const newReward: ClaimedSpinReward = {
+      id: `reward-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      prizeId: prize.id,
+      category: prize.category,
+      title: prize.label,
+      description: prize.discountDescription,
+      amount: prize.amount,
+      code: prize.code,
+      productInfo: prize.productInfo || prize.foodInfo,
+      claimedAt: new Date().toISOString(),
+      isRedeemed: true,
+    };
+
+    setClaimedSpinRewards((prev) => {
+      const updated = [newReward, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.CLAIMED_SPIN_REWARDS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (prize.category === 'money' && prize.amount) {
+      creditWallet(prize.amount, `Won on Free Spin Wheel (${prize.label})!`);
+      return { success: true, message: `₦${prize.amount.toLocaleString()} credited directly to your CartNova Wallet!`, addedToWallet: prize.amount };
+    }
+
+    if (prize.category === 'product' && prize.productInfo) {
+      claimFreePrizeProductToCart(prize.productInfo);
+      return { success: true, message: `${prize.productInfo.title} added to your cart for ₦0.00!`, addedToCart: true };
+    }
+
+    if (prize.category === 'food' && prize.foodInfo) {
+      claimFreePrizeProductToCart(prize.foodInfo);
+      return { success: true, message: `${prize.foodInfo.title} added to your cart for ₦0.00!`, addedToCart: true };
+    }
+
+    if (prize.category === 'coupon' && prize.code) {
+      applyCoupon(prize.code);
+      return { success: true, message: `Coupon code ${prize.code} applied to your cart!` };
+    }
+
+    return { success: true, message: 'Reward claimed successfully!' };
+  };
+
   // Seasonal Events & Shopping Campaigns Handlers
   const activateSeasonalEventDiscount = (event: SeasonalEvent) => {
     setSelectedSeasonalEvent(event);
@@ -2583,6 +2763,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSubscriptions(INITIAL_SUBSCRIPTIONS);
     setProductQuestions(INITIAL_PRODUCT_QUESTIONS);
     setIsNovaPrimeState(false);
+    setFreeSpinsLeft(5);
+    setWalletBalance(50000);
+    setClaimedSpinRewards([]);
     addToast('info', 'Store Reset', 'Demo data reloaded to factory defaults');
   };
 
@@ -2598,6 +2781,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsAuthModalOpen,
         authModalMode,
         setAuthModalMode,
+        authModalRole,
+        setAuthModalRole,
         openAuthModal,
         closeAuthModal,
         loginWithEmail,
@@ -2723,6 +2908,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         subscriptions,
         addSubscription,
         cancelSubscription,
+        // Free Spins & Lucky Spin Wheel Rewards
+        freeSpinsLeft,
+        setFreeSpinsLeft,
+        replenishFreeSpins,
+        decrementFreeSpins,
+        walletBalance,
+        setWalletBalance,
+        creditWallet,
+        debitWallet,
+        claimedSpinRewards,
+        setClaimedSpinRewards,
+        spinWheelPrizes: INITIAL_SPIN_PRIZES,
+        claimSpinReward,
+        claimFreePrizeProductToCart,
+        isSpinWheelOpen,
+        setIsSpinWheelOpen,
+        openSpinWheel,
+        closeSpinWheel,
         // Notifications
         notifications,
         userNotifications,

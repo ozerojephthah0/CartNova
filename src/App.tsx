@@ -53,16 +53,25 @@ import {
 } from 'lucide-react';
 
 const MainContent: React.FC = () => {
-  const { activeRole, activeCustomerTab, currentUser, setActiveCustomerTab } = useStore();
+  const {
+    activeRole,
+    activeCustomerTab,
+    currentUser,
+    setActiveCustomerTab,
+    openAuthModal,
+    isSpinWheelOpen,
+    setIsSpinWheelOpen,
+    openSpinWheel,
+    closeSpinWheel,
+  } = useStore();
   const [isRoleSwitcherOpen, setIsRoleSwitcherOpen] = useState(false);
-  const [isSpinWheelOpen, setIsSpinWheelOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[var(--color-canvas)] text-[var(--color-text-main)] flex flex-col font-sans selection:bg-orange-500 selection:text-white transition-colors duration-200">
       {/* Universal Sticky Header */}
       <Header
         onOpenRoleSwitcher={() => setIsRoleSwitcherOpen(true)}
-        onOpenSpinWheel={() => setIsSpinWheelOpen(true)}
+        onOpenSpinWheel={openSpinWheel}
       />
 
       {/* Main Container View Based on Active Role */}
@@ -220,11 +229,11 @@ const MainContent: React.FC = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => setIsSpinWheelOpen(true)}
+                    onClick={openSpinWheel}
                     className="hover:text-yellow-300 text-yellow-400 transition-colors cursor-pointer font-bold flex items-center gap-1.5"
                   >
                     <Gift className="w-3.5 h-3.5" />
-                    <span>Spin & Win $100 Bundle</span>
+                    <span>Free Spins: Win Cash, Tech & Food</span>
                   </button>
                 </li>
                 <li>
@@ -246,6 +255,24 @@ const MainContent: React.FC = () => {
                   >
                     <Store className="w-3 h-3 text-emerald-400" />
                     <span>Merchant Seller Hub</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => openAuthModal('login', 'customer')}
+                    className="hover:text-indigo-300 text-indigo-400 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+                  >
+                    <ShoppingBag className="w-3 h-3 text-indigo-400" />
+                    <span>Customer Sign In</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => openAuthModal('login', 'admin')}
+                    className="hover:text-purple-300 text-purple-400 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+                  >
+                    <ShieldCheck className="w-3 h-3 text-purple-400" />
+                    <span>Admin Control Portal Login</span>
                   </button>
                 </li>
               </ul>
@@ -293,7 +320,7 @@ const MainContent: React.FC = () => {
 
       {/* Global Modals & Drawers */}
       <RoleSwitcher isOpen={isRoleSwitcherOpen} onClose={() => setIsRoleSwitcherOpen(false)} />
-      <TemuSpinWheelModal isOpen={isSpinWheelOpen} onClose={() => setIsSpinWheelOpen(false)} />
+      <TemuSpinWheelModal isOpen={isSpinWheelOpen} onClose={closeSpinWheel} />
       <PriceSlashModal />
       <MysteryBoxModal />
       <NovaPrimeModal />

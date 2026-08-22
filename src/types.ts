@@ -429,3 +429,54 @@ export interface SeasonalEvent {
   giftGuideTips: string[];
 }
 
+export type SpinPrizeCategory = 'money' | 'product' | 'food' | 'coupon';
+
+export interface SpinWheelPrize {
+  id: string;
+  category: SpinPrizeCategory;
+  label: string;
+  sublabel: string;
+  code?: string;
+  amount?: number; // Cash money amount in NGN
+  productInfo?: {
+    id: string;
+    title: string;
+    image: string;
+    originalPrice: number;
+    category: string;
+    description: string;
+  };
+  foodInfo?: {
+    id: string;
+    title: string;
+    image: string;
+    originalPrice: number;
+    category: string;
+    description: string;
+  };
+  color: string;
+  textColor: string;
+  icon: 'cash' | 'product' | 'food' | 'bundle' | 'percent' | 'gift' | 'truck' | 'zap';
+  discountDescription: string;
+}
+
+export interface ClaimedSpinReward {
+  id: string;
+  prizeId: string;
+  category: SpinPrizeCategory;
+  title: string;
+  description: string;
+  amount?: number;
+  code?: string;
+  productInfo?: {
+    id: string;
+    title: string;
+    image: string;
+    originalPrice: number;
+    category: string;
+    description: string;
+  };
+  claimedAt: string;
+  isRedeemed: boolean;
+}
+
