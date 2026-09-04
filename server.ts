@@ -32,51 +32,105 @@ async function startServer() {
     res.json({ status: "ok", app: "CartNova", timestamp: new Date().toISOString() });
   });
 
-  // AI Shopping Assistant & Concierge
+  // AI Shopping, Merchant & Admin Assistant Concierge
   app.post("/api/ai-assistant", async (req, res) => {
     try {
       const query = req.body.query || req.body.message || "";
+      const role = req.body.role || "customer"; // 'customer' | 'seller' | 'admin'
+      const activeCategory = req.body.category || "all";
+      const activeSeasonalEvent = req.body.seasonalEvent || null;
+      const seasonalEvents = req.body.seasonalEvents || [];
+      const categories = req.body.categories || [];
       const products = req.body.products || req.body.context || [];
       const client = getGeminiClient();
 
       if (!client) {
         // Fallback intelligent response if API key is not configured yet
-        const matched = Array.isArray(products)
-          ? products
-              .filter((p: any) =>
-                p.title?.toLowerCase().includes(query.toLowerCase()) ||
-                p.category?.toLowerCase().includes(query.toLowerCase()) ||
-                p.description?.toLowerCase().includes(query.toLowerCase())
-              )
-              .slice(0, 3)
-              .map((p: any) => p.id)
+        const lowerQuery = query.toLowerCase();
+        let matched = Array.isArray(products)
+          ? products.filter((p: any) => {
+              const matchesCat =
+                activeCategory === "all" ||
+                p.category?.toLowerCase() === activeCategory.toLowerCase();
+              const matchesQuery =
+                !query ||
+                p.title?.toLowerCase().includes(lowerQuery) ||
+                p.category?.toLowerCase().includes(lowerQuery) ||
+                p.description?.toLowerCase().includes(lowerQuery) ||
+                p.tags?.some((t: string) => t.toLowerCase().includes(lowerQuery));
+              return matchesCat && matchesQuery;
+            })
           : [];
 
+        if (matched.length === 0 && Array.isArray(products)) {
+          matched = products.slice(0, 3);
+        }
+
+        let fallbackReply = "";
+        let eventCode = "";
+
+        if (activeSeasonalEvent) {
+          eventCode = activeSeasonalEvent.couponCode || "NOVA20";
+          fallbackReply = `🎉 **${activeSeasonalEvent.name} Spotlight**: Enjoy an instant flat **20% discount** across our entire catalog using promo code \`${eventCode}\`! Here are handpicked flagship items for this campaign:`;
+        } else if (role === "seller") {
+          fallbackReply = `🏪 **Merchant AI Co-Pilot**: In **${activeCategory === "all" ? "All Categories" : activeCategory}**, top sellers are seeing high demand! You can optimize your titles with high-search keywords and participate in seasonal campaigns with 20% promotional badges to boost sales velocity.`;
+        } else if (role === "admin") {
+          fallbackReply = `🛡️ **Admin AI Store Auditor**: Catalog overview for **${activeCategory === "all" ? "All Categories" : activeCategory}**: Total inventory active across ${categories.length || 9} categories with 14 seasonal events scheduled. Inventory levels and order fulfillment health are optimal.`;
+        } else {
+          fallbackReply = `✨ **Nova AI Concierge**: For "${query || activeCategory}", here are top-tier curated recommendations from our verified store inventory with free express delivery and buyer protection:`;
+        }
+
         return res.json({
-          reply: `Hello! I'm Nova, your CartNova shopping assistant. For "${query}", I recommend checking out our top-rated collections with free express delivery! Let me know if you need specific price comparisons or gift recommendations.`,
-          recommendedProductIds: matched,
+          reply: fallbackReply,
+          recommendedProductIds: matched.slice(0, 4).map((p: any) => p.id),
+          featuredCategory: activeCategory !== "all" ? activeCategory : undefined,
+          seasonalEventCode: eventCode || undefined,
           isFallback: true,
         });
       }
 
-      const prompt = `You are "Nova", the intelligent e-commerce shopping and product concierge for CartNova, a premium online digital store.
-The user is asking: "${query}".
-Available Catalog Items snippet: ${JSON.stringify(
+      const prompt = `You are "Nova", the intelligent multi-role AI Assistant for CartNova, a luxury e-commerce digital marketplace.
+
+Context:
+- User Role: "${role}" (Options: 'customer', 'seller' / 'merchant', 'admin')
+- Active Category: "${activeCategory}"
+- Active Seasonal Event: ${JSON.stringify(activeSeasonalEvent)}
+- User Query: "${query}"
+- Available Categories: ${JSON.stringify(categories.map((c: any) => c.name || c))}
+- Available Seasonal Events (14 campaigns with 20% discounts): ${JSON.stringify(
+        seasonalEvents.slice(0, 10).map((e: any) => ({
+          name: e.name,
+          month: e.month,
+          couponCode: e.couponCode,
+          discount: "20%",
+          status: e.status,
+        }))
+      )}
+- Catalog Items Snippet: ${JSON.stringify(
         Array.isArray(products)
-          ? products.slice(0, 15).map((p: any) => ({
+          ? products.slice(0, 18).map((p: any) => ({
               id: p.id,
               title: p.title,
               category: p.category,
+              brand: p.brand,
               price: p.price,
               rating: p.rating,
+              stock: p.stock,
             }))
           : []
       )}
 
-Return a JSON response matching this schema:
+Role-based guidance:
+- If Role is "customer": Recommend matching products, highlight features, explain seasonal event discounts (all 14 events feature 20% off), give friendly shopping advice.
+- If Role is "seller" / "merchant": Provide high-converting product title ideas, pricing suggestions for the category, inventory advice, and how to leverage seasonal events.
+- If Role is "admin": Provide category inventory audits, promotional campaign suggestions, seasonal event tracking metrics, and merchandising recommendations.
+
+Return ONLY a JSON response matching this schema:
 {
-  "reply": "Helpful, friendly, and concise response under 100 words with buying advice or recommendation",
-  "recommendedProductIds": ["prod-id-1", "prod-id-2"]
+  "reply": "Concise, friendly, and formatted response (markdown bolding encouraged, max 100 words)",
+  "recommendedProductIds": ["prod-id-1", "prod-id-2"],
+  "featuredCategory": "Category Name or null",
+  "seasonalEventCode": "COUPONCODE or null"
 }`;
 
       const response = await client.models.generateContent({
@@ -95,8 +149,10 @@ Return a JSON response matching this schema:
       }
 
       res.json({
-        reply: parsed.reply || "Here are some great options for you on CartNova!",
+        reply: parsed.reply || "Here are top curated recommendations on CartNova!",
         recommendedProductIds: parsed.recommendedProductIds || [],
+        featuredCategory: parsed.featuredCategory || undefined,
+        seasonalEventCode: parsed.seasonalEventCode || undefined,
       });
     } catch (error: any) {
       console.error("AI Assistant error:", error);
@@ -293,6 +349,151 @@ Return ONLY a JSON object:
 
   app.post("/api/ai-product-copy", handleProductCopyGen);
   app.post("/api/ai-generate-product", handleProductCopyGen);
+
+  // ==========================================
+  // SIMULATED PAYMENT & EMAIL ALERT API (DEMO MODE)
+  // ==========================================
+  const {
+    getAllSimulatedTransactions,
+    createSimulatedTransaction,
+    updateSimulatedTransactionStatus,
+    resendSimulatedAlert,
+    updatePaymentConfig,
+    getPaymentConfig,
+    dispatchSimulatedPaymentAlert,
+  } = await import("./server/simulatedPaymentService.js").catch(() =>
+    import("./server/simulatedPaymentService")
+  );
+
+  // Get all simulated transactions & config
+  app.get("/api/simulated-transactions", (req, res) => {
+    const data = getAllSimulatedTransactions();
+    res.json({ success: true, ...data });
+  });
+
+  // Create new simulated transaction on checkout
+  app.post("/api/simulated-transactions", async (req, res) => {
+    try {
+      const {
+        orderId,
+        orderNumber,
+        customerName,
+        customerEmail,
+        amount,
+        currency,
+        paymentMethod,
+        items,
+        initialStatus,
+      } = req.body;
+
+      if (!orderNumber || !amount) {
+        return res.status(400).json({ error: "Missing required order details" });
+      }
+
+      const transaction = await createSimulatedTransaction({
+        orderId: orderId || `ord-${Date.now()}`,
+        orderNumber: orderNumber || `CN-${Math.floor(1000 + Math.random() * 9000)}`,
+        customerName: customerName || "Guest Customer",
+        customerEmail: customerEmail || "customer@cartnova.dev",
+        amount: Number(amount) || 0,
+        currency: currency || "USD",
+        paymentMethod: paymentMethod || "TEST_CREDIT_CARD",
+        items: items || [],
+        initialStatus: initialStatus || "TEST_RECEIVED",
+      });
+
+      res.status(201).json({ success: true, transaction });
+    } catch (err: any) {
+      console.error("Error creating simulated transaction:", err);
+      res.status(500).json({ error: err.message || "Failed to record simulated payment" });
+    }
+  });
+
+  // Update status (e.g. TEST_PENDING, TEST_RECEIVED, TEST_COMPLETED, TEST_FAILED, TEST_EXPIRED)
+  app.patch("/api/simulated-transactions/:id/status", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, note } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: "Missing status field" });
+      }
+
+      const updated = updateSimulatedTransactionStatus(id, status, note);
+      if (!updated) {
+        return res.status(404).json({ error: "Simulated transaction not found" });
+      }
+
+      res.json({ success: true, transaction: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Resend email alert for a transaction
+  app.post("/api/simulated-transactions/:id/resend-alert", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await resendSimulatedAlert(id);
+      if (!result.transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      res.json({ success: true, transaction: result.transaction });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // One-click Test Email Dispatch trigger for admin dashboard
+  app.post("/api/admin/test-email-dispatch", async (req, res) => {
+    try {
+      const targetEmail = req.body.adminEmail || getPaymentConfig().adminEmail;
+      if (req.body.adminEmail) {
+        updatePaymentConfig({ adminEmail: req.body.adminEmail });
+      }
+
+      const dummyTxn = await createSimulatedTransaction({
+        orderId: `ord-test-${Date.now()}`,
+        orderNumber: `CN-TEST-${Math.floor(1000 + Math.random() * 9000)}`,
+        customerName: req.body.customerName || "Dr. Alex Johnson (Verified VIP Customer)",
+        customerEmail: req.body.customerEmail || "alex.johnson@example.com",
+        amount: Number(req.body.amount) || 1249.99,
+        currency: req.body.currency || "USD",
+        paymentMethod: req.body.paymentMethod || "TEST_CREDIT_CARD",
+        items: [
+          {
+            id: "prod-sim-1",
+            title: "Pro Tandem OLED Flagship iPad 13-inch (M4 Chip)",
+            price: 1249.99,
+            quantity: 1,
+          },
+        ],
+        initialStatus: "TEST_RECEIVED",
+      });
+
+      res.json({
+        success: true,
+        message: `Test payment alert dispatched to ${targetEmail}`,
+        transaction: dummyTxn,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Get/Update payment config (admin Gmail, 5-min window toggle, etc.)
+  app.get("/api/admin/test-email-config", (req, res) => {
+    res.json({ success: true, config: getPaymentConfig() });
+  });
+
+  app.post("/api/admin/test-email-config", (req, res) => {
+    try {
+      const updated = updatePaymentConfig(req.body);
+      res.json({ success: true, config: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // Vite middleware for development vs static production serving
   if (process.env.NODE_ENV !== "production") {

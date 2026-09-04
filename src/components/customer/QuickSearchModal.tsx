@@ -143,8 +143,27 @@ export const QuickSearchModal: React.FC = () => {
   const q = searchQuery.trim().toLowerCase();
   const matchingProducts = products
     .filter((p) => {
-      if (selectedCategory !== 'all' && p.category.toLowerCase() !== selectedCategory.toLowerCase()) {
-        return false;
+      if (selectedCategory !== 'all') {
+        const catFilter = selectedCategory.toLowerCase();
+        const pCat = (p.category || '').toLowerCase();
+        const catObj = categories.find(
+          (c) => c.slug.toLowerCase() === catFilter || c.name.toLowerCase() === catFilter
+        );
+        const targetName = catObj ? catObj.name.toLowerCase() : catFilter;
+        const targetSlug = catObj ? catObj.slug.toLowerCase() : catFilter;
+        const match =
+          pCat === catFilter ||
+          pCat === targetName ||
+          pCat === targetSlug ||
+          (catFilter === 'electronics' && (pCat.includes('electron') || pCat.includes('appliance') || pCat.includes('tv'))) ||
+          ((catFilter.includes('game') || catFilter.includes('toy')) && (pCat.includes('game') || pCat.includes('toy'))) ||
+          (catFilter.includes('auto') && pCat.includes('auto')) ||
+          (catFilter.includes('gadget') && pCat.includes('gadget')) ||
+          (catFilter.includes('book') && pCat.includes('book')) ||
+          (catFilter.includes('accessor') && pCat.includes('accessor')) ||
+          (catFilter.includes('grocer') && (pCat.includes('grocer') || pCat.includes('food'))) ||
+          ((catFilter.includes('sport') || catFilter.includes('fitness')) && (pCat.includes('sport') || pCat.includes('fitness')));
+        if (!match) return false;
       }
       if (!q) return true;
       const title = (p.title || '').toLowerCase();
@@ -152,15 +171,31 @@ export const QuickSearchModal: React.FC = () => {
       const category = (p.category || '').toLowerCase();
       const tags = (p.tags || []).map((t) => t.toLowerCase());
       const desc = `${p.description || ''} ${p.shortDescription || ''}`.toLowerCase();
+      const specs = Object.entries(p.specs || {})
+        .map(([k, v]) => `${k} ${v}`.toLowerCase())
+        .join(' ');
       return (
         title.includes(q) ||
         brand.includes(q) ||
         category.includes(q) ||
         tags.some((t) => t.includes(q)) ||
+        specs.includes(q) ||
         desc.includes(q)
       );
     })
     .slice(0, 6);
+
+  // Extract matching categories
+  const matchingCategories = categories
+    .filter((cat) => {
+      if (!q) return false;
+      const qClean = q.replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+      const nameClean = cat.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+      const slugClean = cat.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const descClean = (cat.description || '').toLowerCase();
+      return nameClean.includes(qClean) || slugClean.includes(qClean) || descClean.includes(q);
+    })
+    .slice(0, 4);
 
   // Extract matching brands
   const matchingBrands = Array.from(
@@ -366,6 +401,31 @@ export const QuickSearchModal: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Matching Categories */}
+            {matchingCategories.length > 0 && (
+              <div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                  Matching Categories
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {matchingCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      id={`modal-match-cat-${cat.id}`}
+                      onClick={() => {
+                        setSelectedCategory(cat.name);
+                        executeSearch(searchQuery, cat.name);
+                      }}
+                      className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200/80 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-orange-600" />
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Matching Brands */}
             {matchingBrands.length > 0 && (

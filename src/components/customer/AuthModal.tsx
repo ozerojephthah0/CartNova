@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { UserRole } from '../../types';
 import {
   X,
   Mail,
@@ -14,6 +15,7 @@ import {
   Loader2,
   AtSign,
   ShoppingBag,
+  Store,
   Crown,
   Building2,
   BadgeCheck,
@@ -37,9 +39,9 @@ export const AuthModal: React.FC = () => {
     activeRole,
   } = useStore();
 
-  // Role selection state: 'customer' or 'admin'
-  const [selectedRole, setSelectedRole] = useState<'customer' | 'admin'>(() =>
-    authModalRole || (activeRole === 'admin' ? 'admin' : 'customer')
+  // Role selection state: 'customer' | 'seller' | 'admin'
+  const [selectedRole, setSelectedRole] = useState<UserRole>(() =>
+    authModalRole || activeRole || 'customer'
   );
 
   // Sync role when modal opens with specific target role
@@ -194,6 +196,7 @@ export const AuthModal: React.FC = () => {
 
   // Predefined demo accounts
   const customerDemoAccounts = allUsers.filter((u) => u.role === 'customer');
+  const sellerDemoAccounts = allUsers.filter((u) => u.role === 'seller');
   const adminDemoAccounts = allUsers.filter((u) => u.role === 'admin');
 
   return (
@@ -223,6 +226,8 @@ export const AuthModal: React.FC = () => {
             className={`text-white p-6 relative transition-colors duration-300 ${
               selectedRole === 'admin'
                 ? 'bg-gradient-to-r from-slate-950 via-purple-950 to-slate-900'
+                : selectedRole === 'seller'
+                ? 'bg-gradient-to-r from-slate-950 via-emerald-950 to-teal-950'
                 : 'bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950'
             }`}
           >
@@ -240,12 +245,17 @@ export const AuthModal: React.FC = () => {
               {selectedRole === 'admin' ? (
                 <div className="flex items-center gap-1 text-purple-300 bg-purple-900/60 px-2 py-0.5 rounded-md border border-purple-700/50">
                   <ShieldCheck className="w-4 h-4 text-purple-400" />
-                  <span>CartNova Admin Management Portal</span>
+                  <span>CartNova Admin HQ Portal</span>
+                </div>
+              ) : selectedRole === 'seller' ? (
+                <div className="flex items-center gap-1 text-emerald-300 bg-emerald-900/60 px-2 py-0.5 rounded-md border border-emerald-700/50">
+                  <Store className="w-4 h-4 text-emerald-400" />
+                  <span>CartNova Merchant & Seller Studio</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 text-indigo-300 bg-indigo-900/60 px-2 py-0.5 rounded-md border border-indigo-700/50">
                   <ShoppingBag className="w-4 h-4 text-indigo-400" />
-                  <span>CartNova Customer Shopper Access</span>
+                  <span>CartNova Shopper Access</span>
                 </div>
               )}
             </div>
@@ -254,15 +264,21 @@ export const AuthModal: React.FC = () => {
               {authModalMode === 'login'
                 ? selectedRole === 'admin'
                   ? 'Sign In as Admin'
+                  : selectedRole === 'seller'
+                  ? 'Sign In as Merchant'
                   : 'Sign In as Customer'
                 : selectedRole === 'admin'
                 ? 'Create Admin Account'
+                : selectedRole === 'seller'
+                ? 'Create Merchant Store'
                 : 'Create Customer Account'}
             </h2>
             <p className="text-xs text-slate-300 mt-1">
               {selectedRole === 'admin'
-                ? 'Access catalog management, sales analytics, orders & platform configuration.'
-                : 'Shop boutique products, enjoy 20% seasonal discounts, spin wheels, and track orders.'}
+                ? 'Manage marketplace products, payments, refunds, logs, and platform settings.'
+                : selectedRole === 'seller'
+                ? 'List inventory, fulfill merchant orders, manage payouts, and respond to reviews.'
+                : 'Shop boutique collections, claim coupon bundles, spin wheels, and track orders.'}
             </p>
 
             {/* Mode Switcher Tabs (Log In vs Sign Up) */}
@@ -278,6 +294,8 @@ export const AuthModal: React.FC = () => {
                   authModalMode === 'login'
                     ? selectedRole === 'admin'
                       ? 'bg-purple-600 text-white shadow-xs'
+                      : selectedRole === 'seller'
+                      ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
@@ -295,6 +313,8 @@ export const AuthModal: React.FC = () => {
                   authModalMode === 'signup'
                     ? selectedRole === 'admin'
                       ? 'bg-purple-600 text-white shadow-xs'
+                      : selectedRole === 'seller'
+                      ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
@@ -309,10 +329,10 @@ export const AuthModal: React.FC = () => {
             {/* ROLE SELECTOR BY PREFERRED ICON */}
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 block">
-                Select Sign-In Identity (Choose Preferred Icon):
+                Select Identity (Choose Preferred Account Type):
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Customer Icon Option */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Customer Option */}
                 <button
                   id="auth-role-customer-btn"
                   type="button"
@@ -320,35 +340,71 @@ export const AuthModal: React.FC = () => {
                     setSelectedRole('customer');
                     setErrorMsg('');
                   }}
-                  className={`flex flex-col items-start p-3.5 rounded-2xl border-2 transition-all cursor-pointer text-left relative ${
+                  className={`flex flex-col items-start p-3 rounded-2xl border-2 transition-all cursor-pointer text-left relative ${
                     selectedRole === 'customer'
                       ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
                       : 'border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-slate-50'
                   }`}
                 >
                   {selectedRole === 'customer' && (
-                    <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
+                    <span className="absolute top-2 right-2 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">
                       ✓
                     </span>
                   )}
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
                       selectedRole === 'customer'
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                        ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/30'
                         : 'bg-slate-200 text-slate-700'
                     }`}
                   >
-                    <ShoppingBag className="w-5 h-5" />
+                    <ShoppingBag className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-black text-slate-900 flex items-center gap-1">
-                    Customer / Shopper
+                  <span className="text-xs font-black text-slate-900 line-clamp-1">
+                    Shopper
                   </span>
-                  <span className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                    Shop & track orders
+                  <span className="text-[9px] text-slate-500 line-clamp-1">
+                    Buy & track
                   </span>
                 </button>
 
-                {/* Admin Icon Option */}
+                {/* Seller Option */}
+                <button
+                  id="auth-role-seller-btn"
+                  type="button"
+                  onClick={() => {
+                    setSelectedRole('seller');
+                    setErrorMsg('');
+                  }}
+                  className={`flex flex-col items-start p-3 rounded-2xl border-2 transition-all cursor-pointer text-left relative ${
+                    selectedRole === 'seller'
+                      ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-slate-50'
+                  }`}
+                >
+                  {selectedRole === 'seller' && (
+                    <span className="absolute top-2 right-2 w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">
+                      ✓
+                    </span>
+                  )}
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
+                      selectedRole === 'seller'
+                        ? 'bg-emerald-600 text-white shadow-xs shadow-emerald-600/30'
+                        : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-black text-slate-900 line-clamp-1">
+                    Merchant
+                  </span>
+                  <span className="text-[9px] text-slate-500 line-clamp-1">
+                    Sell & payout
+                  </span>
+                </button>
+
+                {/* Admin Option */}
                 <button
                   id="auth-role-admin-btn"
                   type="button"
@@ -356,31 +412,31 @@ export const AuthModal: React.FC = () => {
                     setSelectedRole('admin');
                     setErrorMsg('');
                   }}
-                  className={`flex flex-col items-start p-3.5 rounded-2xl border-2 transition-all cursor-pointer text-left relative ${
+                  className={`flex flex-col items-start p-3 rounded-2xl border-2 transition-all cursor-pointer text-left relative ${
                     selectedRole === 'admin'
                       ? 'border-purple-600 bg-purple-50/70 shadow-xs ring-2 ring-purple-500/20'
                       : 'border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-slate-50'
                   }`}
                 >
                   {selectedRole === 'admin' && (
-                    <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
+                    <span className="absolute top-2 right-2 w-4 h-4 bg-purple-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">
                       ✓
                     </span>
                   )}
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
                       selectedRole === 'admin'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                        ? 'bg-purple-600 text-white shadow-xs shadow-purple-600/30'
                         : 'bg-slate-200 text-slate-700'
                     }`}
                   >
-                    <ShieldCheck className="w-5 h-5" />
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-black text-slate-900 flex items-center gap-1">
-                    Store Admin / HQ
+                  <span className="text-xs font-black text-slate-900 line-clamp-1">
+                    HQ Admin
                   </span>
-                  <span className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                    Catalog & analytics
+                  <span className="text-[9px] text-slate-500 line-clamp-1">
+                    Full control
                   </span>
                 </button>
               </div>
@@ -394,7 +450,7 @@ export const AuthModal: React.FC = () => {
               </div>
             )}
 
-            {/* GOOGLE AUTHENTICATION SECTION (AVAILABLE FOR BOTH ROLES) */}
+            {/* GOOGLE AUTHENTICATION SECTION */}
             <div className="space-y-2.5">
               <button
                 id="google-continue-btn"
@@ -404,13 +460,19 @@ export const AuthModal: React.FC = () => {
                 className={`w-full flex items-center justify-center gap-3 py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 text-sm font-bold rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-xs ${
                   selectedRole === 'admin'
                     ? 'border-purple-200 hover:border-purple-300'
+                    : selectedRole === 'seller'
+                    ? 'border-emerald-200 hover:border-emerald-300'
                     : 'border-indigo-200 hover:border-indigo-300'
                 }`}
               >
                 {googleLoading ? (
                   <Loader2
                     className={`w-5 h-5 animate-spin ${
-                      selectedRole === 'admin' ? 'text-purple-600' : 'text-indigo-600'
+                      selectedRole === 'admin'
+                        ? 'text-purple-600'
+                        : selectedRole === 'seller'
+                        ? 'text-emerald-600'
+                        : 'text-indigo-600'
                     }`}
                   />
                 ) : (
@@ -437,10 +499,14 @@ export const AuthModal: React.FC = () => {
                   Continue with Google as{' '}
                   <span
                     className={`font-black ${
-                      selectedRole === 'admin' ? 'text-purple-700' : 'text-indigo-700'
+                      selectedRole === 'admin'
+                        ? 'text-purple-700'
+                        : selectedRole === 'seller'
+                        ? 'text-emerald-700'
+                        : 'text-indigo-700'
                     }`}
                   >
-                    {selectedRole === 'admin' ? 'Admin' : 'Customer'}
+                    {selectedRole === 'admin' ? 'Admin' : selectedRole === 'seller' ? 'Merchant' : 'Customer'}
                   </span>
                 </span>
               </button>
@@ -450,6 +516,8 @@ export const AuthModal: React.FC = () => {
                 className={`p-3.5 rounded-2xl border space-y-2.5 ${
                   selectedRole === 'admin'
                     ? 'bg-purple-50/50 border-purple-200/80'
+                    : selectedRole === 'seller'
+                    ? 'bg-emerald-50/50 border-emerald-200/80'
                     : 'bg-slate-50 border-slate-200/80'
                 }`}
               >
@@ -457,7 +525,11 @@ export const AuthModal: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                     <AtSign
                       className={`w-3.5 h-3.5 ${
-                        selectedRole === 'admin' ? 'text-purple-600' : 'text-indigo-600'
+                        selectedRole === 'admin'
+                          ? 'text-purple-600'
+                          : selectedRole === 'seller'
+                          ? 'text-emerald-600'
+                          : 'text-indigo-600'
                       }`}
                     />
                     <span>Sign in with any Gmail</span>
@@ -466,10 +538,12 @@ export const AuthModal: React.FC = () => {
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                       selectedRole === 'admin'
                         ? 'bg-purple-100 text-purple-700'
+                        : selectedRole === 'seller'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-indigo-100 text-indigo-700'
                     }`}
                   >
-                    As {selectedRole === 'admin' ? 'ADMIN' : 'CUSTOMER'}
+                    As {selectedRole.toUpperCase()}
                   </span>
                 </div>
 
@@ -507,13 +581,15 @@ export const AuthModal: React.FC = () => {
                       className={`px-4 py-2 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0 disabled:opacity-50 ${
                         selectedRole === 'admin'
                           ? 'bg-purple-700 hover:bg-purple-800'
+                          : selectedRole === 'seller'
+                          ? 'bg-emerald-700 hover:bg-emerald-800'
                           : 'bg-slate-900 hover:bg-slate-800'
                       }`}
                     >
                       {googleLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        `Sign in as ${selectedRole === 'admin' ? 'Admin' : 'Customer'}`
+                        `Sign in as ${selectedRole === 'admin' ? 'Admin' : selectedRole === 'seller' ? 'Merchant' : 'Customer'}`
                       )}
                     </button>
                   </div>
@@ -544,6 +620,8 @@ export const AuthModal: React.FC = () => {
                       placeholder={
                         selectedRole === 'admin'
                           ? 'admin@cartnova.com'
+                          : selectedRole === 'seller'
+                          ? 'seller@cartnova.com'
                           : 'youremail@example.com'
                       }
                       value={email}
@@ -563,6 +641,14 @@ export const AuthModal: React.FC = () => {
                         className="text-[11px] text-purple-600 hover:text-purple-700 font-semibold cursor-pointer"
                       >
                         Fill admin demo email
+                      </button>
+                    ) : selectedRole === 'seller' ? (
+                      <button
+                        type="button"
+                        onClick={() => setEmail('seller.aurora@cartnova.com')}
+                        className="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer"
+                      >
+                        Fill seller demo email
                       </button>
                     ) : (
                       <button
@@ -621,6 +707,8 @@ export const AuthModal: React.FC = () => {
                   className={`w-full py-3 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                     selectedRole === 'admin'
                       ? 'bg-purple-700 hover:bg-purple-800 shadow-purple-700/25'
+                      : selectedRole === 'seller'
+                      ? 'bg-emerald-700 hover:bg-emerald-800 shadow-emerald-700/25'
                       : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25'
                   }`}
                 >
@@ -629,7 +717,7 @@ export const AuthModal: React.FC = () => {
                   ) : (
                     <>
                       <span>
-                        Sign In as {selectedRole === 'admin' ? 'Admin' : 'Customer'}
+                        Sign In as {selectedRole === 'admin' ? 'Admin' : selectedRole === 'seller' ? 'Merchant' : 'Customer'}
                       </span>
                       <ArrowRight className="w-4 h-4" />
                     </>
@@ -641,7 +729,7 @@ export const AuthModal: React.FC = () => {
               <form onSubmit={handleSignupSubmit} className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 block">
-                    {selectedRole === 'admin' ? 'Admin / Full Name' : 'Full Name'}
+                    {selectedRole === 'admin' ? 'Admin / Full Name' : selectedRole === 'seller' ? 'Store / Merchant Name' : 'Full Name'}
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
@@ -652,6 +740,8 @@ export const AuthModal: React.FC = () => {
                       placeholder={
                         selectedRole === 'admin'
                           ? 'Admin Supervisor / Your Name'
+                          : selectedRole === 'seller'
+                          ? 'Aurora Boutique / Store Name'
                           : 'Your Full Name'
                       }
                       value={name}
@@ -674,6 +764,8 @@ export const AuthModal: React.FC = () => {
                       placeholder={
                         selectedRole === 'admin'
                           ? 'admin.name@cartnova.com or your.gmail@gmail.com'
+                          : selectedRole === 'seller'
+                          ? 'store@cartnova.com or seller.gmail@gmail.com'
                           : 'your.email@gmail.com'
                       }
                       value={email}
@@ -758,6 +850,8 @@ export const AuthModal: React.FC = () => {
                   className={`w-full py-3 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                     selectedRole === 'admin'
                       ? 'bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 shadow-purple-600/25'
+                      : selectedRole === 'seller'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 shadow-emerald-600/25'
                       : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-indigo-600/25'
                   }`}
                 >
@@ -767,7 +861,7 @@ export const AuthModal: React.FC = () => {
                     <>
                       <Sparkles className="w-4 h-4" />
                       <span>
-                        Create {selectedRole === 'admin' ? 'Admin' : 'Customer'} Account
+                        Create {selectedRole === 'admin' ? 'Admin' : selectedRole === 'seller' ? 'Merchant Store' : 'Customer'} Account
                       </span>
                     </>
                   )}
@@ -783,7 +877,7 @@ export const AuthModal: React.FC = () => {
               
               <div className="space-y-1.5">
                 {/* Admin Quick Login */}
-                {adminDemoAccounts.map((user) => (
+                {adminDemoAccounts.slice(0, 1).map((user) => (
                   <button
                     key={user.id}
                     type="button"
@@ -803,10 +897,57 @@ export const AuthModal: React.FC = () => {
                     </div>
                     <span className="px-2 py-0.5 bg-purple-600 text-white text-[10px] font-black rounded-md flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" />
-                      ADMIN LOGIN
+                      ADMIN
                     </span>
                   </button>
                 ))}
+
+                {/* Seller Quick Login */}
+                {sellerDemoAccounts.length > 0 ? (
+                  sellerDemoAccounts.slice(0, 1).map((user) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => {
+                        loginWithEmail(user.email, undefined, 'seller');
+                      }}
+                      className="w-full flex items-center justify-between p-2 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 rounded-xl text-xs font-semibold text-emerald-900 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-5 h-5 rounded-full object-cover ring-1 ring-emerald-300"
+                          referrerPolicy="no-referrer"
+                        />
+                        <span>{user.storeName || user.name}</span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md flex items-center gap-1">
+                        <Store className="w-3 h-3" />
+                        SELLER
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loginWithEmail('seller.aurora@cartnova.com', undefined, 'seller');
+                    }}
+                    className="w-full flex items-center justify-between p-2 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 rounded-xl text-xs font-semibold text-emerald-900 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                        A
+                      </div>
+                      <span>Aurora Luxe Merchant Store</span>
+                    </div>
+                    <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md flex items-center gap-1">
+                      <Store className="w-3 h-3" />
+                      SELLER
+                    </span>
+                  </button>
+                )}
 
                 {/* Customer Quick Login */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -825,7 +966,7 @@ export const AuthModal: React.FC = () => {
                         className="w-4 h-4 rounded-full object-cover"
                         referrerPolicy="no-referrer"
                       />
-                      <span>{user.name} (Customer)</span>
+                      <span>{user.name} (Shopper)</span>
                     </button>
                   ))}
                 </div>

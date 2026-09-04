@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { User, Product, Coupon } from '../../types';
+import { User, Product, Coupon, Category, OrderStatus } from '../../types';
 import { AdminProductModal } from './AdminProductModal';
 import {
   ShieldCheck,
@@ -27,15 +27,40 @@ import {
   Flame,
   Layers,
   ArrowUpRight,
+  Truck,
+  MessageSquare,
+  BarChart3,
+  Grid,
+  Clock,
+  Send,
+  AlertCircle,
+  ChevronRight,
+  CreditCard,
+  LifeBuoy,
+  Megaphone,
+  Image as ImageIcon,
+  Lock,
+  Mail,
 } from 'lucide-react';
+import { AdminGuard } from './AdminGuard';
+import { AdminPaymentsRefundsTab } from './AdminPaymentsRefundsTab';
+import { AdminSupportDeskTab } from './AdminSupportDeskTab';
+import { AdminNotificationsTab } from './AdminNotificationsTab';
+import { AdminBannersTab } from './AdminBannersTab';
+import { AdminPermissionsTab } from './AdminPermissionsTab';
+import { AdminSimulatedPaymentsTab } from './AdminSimulatedPaymentsTab';
 
 export const AdminDashboard: React.FC = () => {
   const {
+    currentUser,
+    activeRole,
     allUsers,
     products,
     orders,
     coupons,
     categories,
+    seasonalEvents,
+    simulatedTransactions,
     toggleUserStatus,
     addUser,
     updateProduct,
@@ -43,10 +68,57 @@ export const AdminDashboard: React.FC = () => {
     addCoupon,
     toggleCouponStatus,
     deleteCoupon,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    updateOrderStatus,
+    updateOrderTracking,
+    reviews,
+    deleteReview,
+    toggleReviewApproval,
+    replyToReviewAsAdmin,
+    verifySeller,
+    updateSellerCommission,
     formatPrice,
+    addToast,
   } = useStore();
 
-  const [adminTab, setAdminTab] = useState<'overview' | 'users' | 'catalog' | 'coupons'>('overview');
+  const [adminTab, setAdminTab] = useState<
+    | 'overview'
+    | 'catalog'
+    | 'categories'
+    | 'orders'
+    | 'payments'
+    | 'test-payments'
+    | 'users'
+    | 'coupons'
+    | 'banners'
+    | 'reviews'
+    | 'support'
+    | 'notifications'
+    | 'permissions'
+    | 'analytics'
+  >('overview');
+
+  // Category State
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryForm, setNewCategoryForm] = useState({
+    name: '',
+    slug: '',
+    iconName: 'Package',
+    description: '',
+    bannerImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=80',
+    accentColor: '#F59E0B',
+  });
+
+  // Order Tracking modal state
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<string | null>(null);
+  const [carrierInput, setCarrierInput] = useState('DHL Express Nigeria');
+  const [trackingNumberInput, setTrackingNumberInput] = useState('');
+
+  // Review Reply State
+  const [replyingReviewId, setReplyingReviewId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // Product Modal State for Admins
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -126,20 +198,33 @@ export const AdminDashboard: React.FC = () => {
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newUserForm.name.trim() || !newUserForm.email.trim()) {
+      addToast('error', 'Invalid Input', 'Please provide a valid user name and email address.');
+      return;
+    }
+    if (!newUserForm.email.includes('@')) {
+      addToast('error', 'Invalid Email', 'Please enter a properly formatted email address.');
+      return;
+    }
+    if (newUserForm.role === 'seller' && !newUserForm.storeName?.trim()) {
+      addToast('error', 'Missing Store Name', 'Marketplace merchants require a designated Store / Brand Name.');
+      return;
+    }
+
     addUser({
-      name: newUserForm.name,
-      email: newUserForm.email,
+      name: newUserForm.name.trim(),
+      email: newUserForm.email.trim().toLowerCase(),
       role: newUserForm.role,
       avatar: `https://images.unsplash.com/photo-${1534528741775 + allUsers.length}?w=400&auto=format&fit=crop&q=80`,
-      storeName: newUserForm.role === 'seller' ? newUserForm.storeName : undefined,
-      storeBio: newUserForm.role === 'seller' ? newUserForm.storeBio : undefined,
-      phone: '+1 (555) 900-1122',
+      storeName: newUserForm.role === 'seller' ? newUserForm.storeName.trim() : undefined,
+      storeBio: newUserForm.role === 'seller' ? newUserForm.storeBio?.trim() : undefined,
+      phone: '+234 801 234 5678',
       address: {
-        street: '100 Innovation Way',
-        city: 'San Francisco',
-        state: 'CA',
-        zip: '94105',
-        country: 'United States',
+        street: '100 Commercial Avenue',
+        city: 'Lagos',
+        state: 'Lagos',
+        zip: '100001',
+        country: 'Nigeria',
       },
     });
     setNewUserForm({ name: '', email: '', role: 'seller', storeName: '', storeBio: '' });
@@ -148,16 +233,70 @@ export const AdminDashboard: React.FC = () => {
 
   const handleCreateCoupon = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanCode = newCouponForm.code.trim().toUpperCase();
+    if (!cleanCode) {
+      addToast('error', 'Invalid Coupon', 'Coupon promo code cannot be empty.');
+      return;
+    }
+    if (newCouponForm.discountPercent <= 0 || newCouponForm.discountPercent > 100) {
+      addToast('error', 'Invalid Discount', 'Discount percent must be between 1% and 100%.');
+      return;
+    }
+
     addCoupon({
-      code: newCouponForm.code.toUpperCase(),
-      description: newCouponForm.description,
+      code: cleanCode,
+      description: newCouponForm.description.trim() || `${newCouponForm.discountPercent}% Promo Discount`,
       discountPercent: Number(newCouponForm.discountPercent),
-      minOrderAmount: Number(newCouponForm.minOrderAmount),
+      minOrderAmount: Number(newCouponForm.minOrderAmount) || 0,
       isActive: true,
-      expiresAt: newCouponForm.expiresAt,
+      expiresAt: newCouponForm.expiresAt || '2026-12-31',
     });
-    setNewCouponForm({ code: '', description: '', discountPercent: 15, minOrderAmount: 50, expiresAt: '2026-12-31' });
+    setNewCouponForm({ code: '', description: '', discountPercent: 15, minOrderAmount: 25000, expiresAt: '2026-12-31' });
     setIsAddCouponOpen(false);
+  };
+
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryForm.name.trim()) {
+      addToast('error', 'Category Name Required', 'Please enter a name for the new category.');
+      return;
+    }
+    const newCat: Category = {
+      id: `cat-${Date.now()}`,
+      name: newCategoryForm.name.trim(),
+      slug: newCategoryForm.slug.trim() || newCategoryForm.name.toLowerCase().replace(/\s+/g, '-'),
+      iconName: newCategoryForm.iconName || 'Package',
+      description: newCategoryForm.description.trim() || `${newCategoryForm.name} curated collection and deals`,
+      bannerImage: newCategoryForm.bannerImage || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=80',
+      itemCount: 0,
+      accentColor: newCategoryForm.accentColor || '#F59E0B',
+    };
+    addCategory(newCat);
+    setIsAddCategoryOpen(false);
+    setNewCategoryForm({
+      name: '',
+      slug: '',
+      iconName: 'Package',
+      description: '',
+      bannerImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=80',
+      accentColor: '#F59E0B',
+    });
+  };
+
+  const handleAssignTracking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderForTracking || !trackingNumberInput.trim()) return;
+    updateOrderTracking(selectedOrderForTracking, carrierInput, trackingNumberInput.trim());
+    setSelectedOrderForTracking(null);
+    setTrackingNumberInput('');
+  };
+
+  const handleSendModeratorReply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyingReviewId || !replyText.trim()) return;
+    replyToReviewAsAdmin(replyingReviewId, replyText.trim(), 'CartNova Official Moderator');
+    setReplyingReviewId(null);
+    setReplyText('');
   };
 
   const filteredCatalog = products.filter((p) => {
@@ -178,6 +317,10 @@ export const AdminDashboard: React.FC = () => {
 
     return matchesSearch && matchesCategory && matchesSeller && matchesBadge;
   });
+
+  if (currentUser.role !== 'admin' && activeRole !== 'admin') {
+    return <AdminGuard />;
+  }
 
   return (
     <div className="py-6 max-w-7xl mx-auto space-y-8">
@@ -268,57 +411,190 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
         <button
           id="admin-tab-overview"
           onClick={() => setAdminTab('overview')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
             adminTab === 'overview'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <TrendingUp className="w-4 h-4" />
-          <span>Platform Overview</span>
-        </button>
-
-        <button
-          id="admin-tab-users"
-          onClick={() => setAdminTab('users')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-            adminTab === 'users'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>User & Merchant Governance ({allUsers.length})</span>
+          <span>Overview</span>
         </button>
 
         <button
           id="admin-tab-catalog"
           onClick={() => setAdminTab('catalog')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
             adminTab === 'catalog'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Package className="w-4 h-4" />
-          <span>Catalog & Deal Moderation ({products.length})</span>
+          <span>Catalog ({products.length})</span>
+        </button>
+
+        <button
+          id="admin-tab-categories"
+          onClick={() => setAdminTab('categories')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'categories'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Grid className="w-4 h-4" />
+          <span>Categories ({categories.length})</span>
+        </button>
+
+        <button
+          id="admin-tab-orders"
+          onClick={() => setAdminTab('orders')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'orders'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          <span>Orders ({orders.length})</span>
+        </button>
+
+        <button
+          id="admin-tab-payments"
+          onClick={() => setAdminTab('payments')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'payments'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Payments & Returns</span>
+        </button>
+
+        <button
+          id="admin-tab-test-payments"
+          onClick={() => setAdminTab('test-payments')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+            adminTab === 'test-payments'
+              ? 'bg-purple-900 text-purple-100 border-purple-700 shadow-xs'
+              : 'bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100'
+          }`}
+        >
+          <Mail className="w-4 h-4 text-purple-600" />
+          <span className="font-extrabold">Test Payments & Alerts ({simulatedTransactions.length})</span>
+          <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 font-black text-[9px] rounded-full uppercase">
+            DEMO
+          </span>
+        </button>
+
+        <button
+          id="admin-tab-users"
+          onClick={() => setAdminTab('users')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'users'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Users & Sellers ({allUsers.length})</span>
         </button>
 
         <button
           id="admin-tab-coupons"
           onClick={() => setAdminTab('coupons')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
             adminTab === 'coupons'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Tag className="w-4 h-4" />
-          <span>Promotions & Vouchers ({coupons.length})</span>
+          <span>Promotions ({coupons.length})</span>
+        </button>
+
+        <button
+          id="admin-tab-banners"
+          onClick={() => setAdminTab('banners')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'banners'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <ImageIcon className="w-4 h-4" />
+          <span>Banners & 20% Off</span>
+        </button>
+
+        <button
+          id="admin-tab-reviews"
+          onClick={() => setAdminTab('reviews')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'reviews'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Reviews ({reviews.length})</span>
+        </button>
+
+        <button
+          id="admin-tab-support"
+          onClick={() => setAdminTab('support')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'support'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <LifeBuoy className="w-4 h-4" />
+          <span>Support Desk</span>
+        </button>
+
+        <button
+          id="admin-tab-notifications"
+          onClick={() => setAdminTab('notifications')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'notifications'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Megaphone className="w-4 h-4" />
+          <span>Broadcasts</span>
+        </button>
+
+        <button
+          id="admin-tab-permissions"
+          onClick={() => setAdminTab('permissions')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'permissions'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Lock className="w-4 h-4" />
+          <span>Permissions & RBAC</span>
+        </button>
+
+        <button
+          id="admin-tab-analytics"
+          onClick={() => setAdminTab('analytics')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            adminTab === 'analytics'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Analytics</span>
         </button>
       </div>
 
@@ -496,9 +772,20 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="p-4 text-slate-600 font-medium">
                         {u.storeName ? (
-                          <div>
-                            <span className="font-bold text-slate-800">{u.storeName}</span>
-                            <p className="text-[10px] text-slate-400 truncate max-w-xs">{u.storeBio}</p>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800">{u.storeName}</span>
+                              {u.isVerifiedSeller && (
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                              <span>Fee: {u.commissionRate || 10}%</span>
+                              <span>•</span>
+                              <span>Followers: {u.followerCount || 1200}</span>
+                            </div>
                           </div>
                         ) : (
                           <span className="text-slate-400 text-[11px]">Standard Customer</span>
@@ -515,7 +802,19 @@ export const AdminDashboard: React.FC = () => {
                           {u.status !== 'suspended' ? 'Active' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right space-x-1.5">
+                        {u.role === 'seller' && (
+                          <button
+                            onClick={() => verifySeller(u.id, !u.isVerifiedSeller)}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                              u.isVerifiedSeller
+                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {u.isVerifiedSeller ? 'Revoke Badge' : 'Verify Seller'}
+                          </button>
+                        )}
                         {u.role !== 'admin' && (
                           <button
                             onClick={() => toggleUserStatus(u.id)}
@@ -614,6 +913,77 @@ export const AdminDashboard: React.FC = () => {
                       </option>
                     ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Horizontally Scrollable Categories Bar */}
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-purple-900 flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Scroll & Filter by Category:</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {filteredCatalog.length} products matching
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-slate-300">
+                <button
+                  onClick={() => setCatalogCategoryFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                    catalogCategoryFilter === 'ALL'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  All Categories ({products.length})
+                </button>
+
+                {categories.map((c) => {
+                  const isSelected = catalogCategoryFilter.toLowerCase() === c.name.toLowerCase();
+                  const count = products.filter((p) => p.category.toLowerCase() === c.name.toLowerCase()).length;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setCatalogCategoryFilter(c.name)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                        isSelected
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>{c.name}</span>
+                      <span
+                        className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Seasonal Events Tag Bar for Admin Audits */}
+              <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-slate-300">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 shrink-0">
+                  <Flame className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Seasonal Campaigns (14 Active):</span>
+                </div>
+                {seasonalEvents.map((evt) => (
+                  <button
+                    key={evt.id}
+                    onClick={() => {
+                      setAdminTab('banners');
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                  >
+                    <span>{evt.name}</span>
+                    <span className="font-mono text-[10px] text-amber-600 font-bold">20% OFF</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -944,7 +1314,566 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Admin Add / Edit Product */}
+      {/* TAB: Categories Manager */}
+      {adminTab === 'categories' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Marketplace Product Categories</h2>
+              <p className="text-xs text-slate-500">Organize product navigation taxonomy, banners, and icons.</p>
+            </div>
+            <button
+              onClick={() => setIsAddCategoryOpen(true)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Category</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {categories.map((cat) => {
+              const matchingProds = products.filter(
+                (p) => p.category.toLowerCase() === cat.name.toLowerCase() || p.category.toLowerCase() === cat.slug.toLowerCase()
+              );
+              return (
+                <div
+                  key={cat.id}
+                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="h-28 w-full bg-slate-100 relative overflow-hidden">
+                      <img src={cat.bannerImage} alt={cat.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <span className="absolute bottom-2 left-3 text-white font-black text-sm drop-shadow">
+                        {cat.name}
+                      </span>
+                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-[10px] font-bold backdrop-blur-sm">
+                        {matchingProds.length} Products
+                      </span>
+                    </div>
+
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] font-bold">
+                          /{cat.slug}
+                        </span>
+                        <span className="text-[11px]">Icon: {cat.iconName}</span>
+                      </div>
+                      <p className="text-xs text-slate-600 line-clamp-2">{cat.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 pt-0 border-t border-slate-100 flex items-center justify-between mt-2">
+                    <span className="text-[11px] text-slate-400 font-medium">ID: {cat.id}</span>
+                    <button
+                      onClick={() => deleteCategory(cat.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: Orders Governance */}
+      {adminTab === 'orders' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Platform Orders & Dispatch Control</h2>
+              <p className="text-xs text-slate-500">
+                Manage logistics fulfillment, status transitions, and courier tracking details.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-3 py-1 bg-slate-100 font-bold rounded-lg text-slate-700">
+                Total Orders: {orders.length}
+              </span>
+              <span className="px-3 py-1 bg-emerald-100 font-bold rounded-lg text-emerald-800">
+                GMV: {formatPrice(gmv)}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="p-4">Order ID & Date</th>
+                    <th className="p-4">Customer</th>
+                    <th className="p-4">Items & Summary</th>
+                    <th className="p-4">Total Amount</th>
+                    <th className="p-4">Payment</th>
+                    <th className="p-4">Fulfillment Status</th>
+                    <th className="p-4 text-right">Actions & Courier</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400">
+                        No orders recorded yet in system.
+                      </td>
+                    </tr>
+                  ) : (
+                    orders.map((ord) => (
+                      <tr key={ord.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="p-4 align-top">
+                          <span className="font-mono font-bold text-slate-900 block">{ord.id}</span>
+                          <span className="text-[11px] text-slate-400">{ord.createdAt}</span>
+                          {ord.trackingNumber && (
+                            <span className="inline-block mt-1 text-[10px] font-mono bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded border border-sky-200">
+                              {ord.carrier}: {ord.trackingNumber}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 align-top">
+                          <span className="font-semibold text-slate-900 block">{ord.shippingAddress?.fullName || 'Registered User'}</span>
+                          <span className="text-[11px] text-slate-500">{ord.shippingAddress?.city || 'Lagos'}, {ord.shippingAddress?.state || 'Nigeria'}</span>
+                          <span className="text-[10px] text-slate-400 block">{ord.shippingAddress?.phone}</span>
+                        </td>
+                        <td className="p-4 align-top">
+                          <div className="space-y-1">
+                            {ord.items.map((it, idx) => (
+                              <div key={idx} className="text-[11px] text-slate-700 line-clamp-1">
+                                {it.quantity}x {it.product.title}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-4 align-top font-bold text-slate-900">
+                          {formatPrice(ord.totalAmount)}
+                        </td>
+                        <td className="p-4 align-top">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-semibold uppercase">
+                            {ord.paymentMethod}
+                          </span>
+                        </td>
+                        <td className="p-4 align-top">
+                          <select
+                            value={ord.status}
+                            onChange={(e) => updateOrderStatus(ord.id, e.target.value as OrderStatus)}
+                            className={`text-xs font-bold rounded-lg px-2.5 py-1 border cursor-pointer ${
+                              ord.status === 'delivered'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : ord.status === 'shipped'
+                                ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                : ord.status === 'cancelled'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
+                        <td className="p-4 align-top text-right space-y-1">
+                          <button
+                            onClick={() => {
+                              setSelectedOrderForTracking(ord.id);
+                              setTrackingNumberInput(ord.trackingNumber || `CN-${Math.floor(100000 + Math.random() * 900000)}`);
+                            }}
+                            className="px-2.5 py-1 bg-slate-900 hover:bg-black text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 shadow-xs"
+                          >
+                            <Truck className="w-3 h-3" />
+                            {ord.trackingNumber ? 'Edit Courier' : 'Assign Tracking'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: Reviews & Content Moderation */}
+      {adminTab === 'reviews' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Ratings & Review Moderation</h2>
+              <p className="text-xs text-slate-500">
+                Audit customer product feedback, approve/hide reviews, and publish official moderator responses.
+              </p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-800 rounded-lg">
+              {reviews.length} Total Platform Reviews
+            </span>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-2xs">
+            {reviews.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-xs">No reviews to moderate at this time.</div>
+            ) : (
+              reviews.map((rev) => {
+                const prod = products.find((p) => p.id === rev.productId);
+                return (
+                  <div key={rev.id} className="p-5 space-y-3 hover:bg-slate-50/40 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                          {rev.userName[0]}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-xs">{rev.userName}</span>
+                            {rev.verifiedPurchase && (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded">
+                                Verified Purchase
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400">
+                            On product: <strong className="text-slate-700">{prod?.title || rev.productId}</strong> • {rev.date}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleReviewApproval(rev.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            rev.isApproved !== false
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                          }`}
+                        >
+                          {rev.isApproved !== false ? 'Approved & Visible' : 'Hidden from Store'}
+                        </button>
+                        <button
+                          onClick={() => setReplyingReviewId(rev.id)}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Reply
+                        </button>
+                        <button
+                          onClick={() => deleteReview(rev.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg"
+                          title="Delete Review"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-amber-400' : 'text-slate-200'}`} />
+                      ))}
+                      <span className="text-xs font-bold text-slate-700 ml-1.5">{rev.rating}.0 / 5.0</span>
+                    </div>
+
+                    <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl">{rev.comment}</p>
+
+                    {rev.sellerReply && (
+                      <div className="bg-amber-50/70 border border-amber-200/60 p-3 rounded-xl text-xs space-y-1">
+                        <span className="font-bold text-amber-900 block">{rev.sellerReply.sellerName}:</span>
+                        <p className="text-amber-800">{rev.sellerReply.message}</p>
+                        <span className="text-[10px] text-amber-600 block">{rev.sellerReply.date}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: Analytics & Executive Metrics */}
+      {adminTab === 'analytics' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">CartNova Marketplace Analytics</h2>
+              <p className="text-xs text-slate-500">High-level financial performance, sales volume, and conversions.</p>
+            </div>
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+              Live Real-Time Data
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+              <span className="text-xs text-slate-500 font-semibold block">Total GMV (Gross Merchandise)</span>
+              <p className="text-2xl font-black text-slate-900">{formatPrice(gmv)}</p>
+              <span className="text-[11px] text-emerald-600 font-bold">↑ 24.8% vs last month</span>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+              <span className="text-xs text-slate-500 font-semibold block">Platform Take Rate (10%)</span>
+              <p className="text-2xl font-black text-indigo-600">{formatPrice(platformRevenue)}</p>
+              <span className="text-[11px] text-indigo-500 font-bold">Net Platform Revenue</span>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+              <span className="text-xs text-slate-500 font-semibold block">Average Order Value (AOV)</span>
+              <p className="text-2xl font-black text-slate-900">{formatPrice(aov)}</p>
+              <span className="text-[11px] text-slate-500 font-medium">Across {totalOrders} total checkouts</span>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+              <span className="text-xs text-slate-500 font-semibold block">Customer Return Rate</span>
+              <p className="text-2xl font-black text-emerald-600">0.8%</p>
+              <span className="text-[11px] text-slate-500">Well below 3.0% benchmark</span>
+            </div>
+          </div>
+
+          {/* Category Distribution & Top Products */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <h3 className="font-bold text-slate-900 text-sm">Product Inventory Distribution by Category</h3>
+              <div className="space-y-3">
+                {categories.map((c) => {
+                  const count = products.filter(
+                    (p) => p.category.toLowerCase() === c.name.toLowerCase() || p.category.toLowerCase() === c.slug.toLowerCase()
+                  ).length;
+                  const percent = products.length > 0 ? Math.round((count / products.length) * 100) : 0;
+                  return (
+                    <div key={c.id} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-slate-700">{c.name}</span>
+                        <span className="text-slate-500">{count} items ({percent}%)</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${percent}%`, backgroundColor: c.accentColor || '#F59E0B' }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <h3 className="font-bold text-slate-900 text-sm">Top Rated High-Demand Products</h3>
+              <div className="divide-y divide-slate-100">
+                {products
+                  .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+                  .slice(0, 5)
+                  .map((p) => (
+                    <div key={p.id} className="py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img src={p.images[0]} alt={p.title} className="w-10 h-10 rounded-lg object-cover" />
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-xs line-clamp-1">{p.title}</h4>
+                          <span className="text-[11px] text-slate-500">{p.brand} • {p.category}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-black text-slate-900 text-xs block">{formatPrice(p.price)}</span>
+                        <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5 justify-end">
+                          <Star className="w-3 h-3 fill-amber-500" /> {p.rating} ({p.reviewCount})
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Payments & Refund Disputes */}
+      {adminTab === 'payments' && <AdminPaymentsRefundsTab />}
+
+      {/* Tab: Simulated Test Payments & Gmail Alert Sandbox */}
+      {adminTab === 'test-payments' && <AdminSimulatedPaymentsTab />}
+
+      {/* Tab: Promotional Banners & Seasonal Campaigns */}
+      {adminTab === 'banners' && <AdminBannersTab />}
+
+      {/* Tab: Customer Support Helpdesk */}
+      {adminTab === 'support' && <AdminSupportDeskTab />}
+
+      {/* Tab: Broadcast Push Notifications */}
+      {adminTab === 'notifications' && <AdminNotificationsTab />}
+
+      {/* Tab: Permissions Matrix & Audit Logs */}
+      {adminTab === 'permissions' && <AdminPermissionsTab />}
+
+      {/* Modal: Admin Add Category */}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setIsAddCategoryOpen(false)} className="fixed inset-0 bg-slate-950/70" />
+          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 z-10 shadow-2xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Add New Marketplace Category</h3>
+            <form onSubmit={handleCreateCategory} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Category Name</label>
+                <input
+                  type="text"
+                  value={newCategoryForm.name}
+                  onChange={(e) =>
+                    setNewCategoryForm({
+                      ...newCategoryForm,
+                      name: e.target.value,
+                      slug: e.target.value.toLowerCase().replace(/\s+/g, '-'),
+                    })
+                  }
+                  required
+                  placeholder="e.g. Sports & Fitness"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">URL Slug</label>
+                <input
+                  type="text"
+                  value={newCategoryForm.slug}
+                  onChange={(e) => setNewCategoryForm({ ...newCategoryForm, slug: e.target.value })}
+                  required
+                  placeholder="sports-fitness"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Description</label>
+                <input
+                  type="text"
+                  value={newCategoryForm.description}
+                  onChange={(e) => setNewCategoryForm({ ...newCategoryForm, description: e.target.value })}
+                  placeholder="Summary of products in this category"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Banner Image URL</label>
+                <input
+                  type="url"
+                  value={newCategoryForm.bannerImage}
+                  onChange={(e) => setNewCategoryForm({ ...newCategoryForm, bannerImage: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                />
+              </div>
+              <div className="pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryOpen(false)}
+                  className="px-3 py-2 text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-600 text-white rounded-xl font-bold shadow-xs cursor-pointer"
+                >
+                  Save Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Courier Tracking Assignment */}
+      {selectedOrderForTracking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setSelectedOrderForTracking(null)} className="fixed inset-0 bg-slate-950/70" />
+          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 z-10 shadow-2xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-sky-600" /> Assign Courier & Tracking
+            </h3>
+            <p className="text-xs text-slate-500">Order: #{selectedOrderForTracking}</p>
+            <form onSubmit={handleAssignTracking} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Logistics Carrier</label>
+                <select
+                  value={carrierInput}
+                  onChange={(e) => setCarrierInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium"
+                >
+                  <option value="DHL Express Nigeria">DHL Express Nigeria</option>
+                  <option value="GIG Logistics (GIGL)">GIG Logistics (GIGL)</option>
+                  <option value="CartNova Prime Express">CartNova Prime Express</option>
+                  <option value="FedEx Nigeria">FedEx Nigeria</option>
+                  <option value="Kwik Delivery">Kwik Delivery</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Waybill / Tracking Number</label>
+                <input
+                  type="text"
+                  value={trackingNumberInput}
+                  onChange={(e) => setTrackingNumberInput(e.target.value)}
+                  required
+                  placeholder="e.g. DHL-984838290"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono"
+                />
+              </div>
+              <div className="pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderForTracking(null)}
+                  className="px-3 py-2 text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-sky-600 text-white rounded-xl font-bold shadow-xs cursor-pointer"
+                >
+                  Save & Update Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Review Moderator Reply */}
+      {replyingReviewId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setReplyingReviewId(null)} className="fixed inset-0 bg-slate-950/70" />
+          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 z-10 shadow-2xl border border-slate-200 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-amber-600" /> Post Official Response
+            </h3>
+            <form onSubmit={handleSendModeratorReply} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Response Message</label>
+                <textarea
+                  rows={4}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  required
+                  placeholder="Thank you for your feedback! Our quality team has verified..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 resize-none"
+                />
+              </div>
+              <div className="pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReplyingReviewId(null)}
+                  className="px-3 py-2 text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-600 text-white rounded-xl font-bold shadow-xs cursor-pointer"
+                >
+                  Post Official Reply
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <AdminProductModal
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}

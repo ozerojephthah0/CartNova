@@ -34,7 +34,7 @@ export const CustomerQnASection: React.FC<CustomerQnASectionProps> = ({ productI
   const [replyText, setReplyText] = useState('');
 
   const questionsForProduct = productQuestions.filter(
-    (q) => q.productId === productId || q.productId === 'prod-1' // fallback for demo
+    (q) => q.productId === productId
   );
 
   const filteredQuestions = questionsForProduct.filter(

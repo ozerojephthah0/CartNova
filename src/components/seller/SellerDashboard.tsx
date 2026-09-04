@@ -21,6 +21,10 @@ import {
   Search,
   Eye,
   X,
+  Layers,
+  Calendar,
+  Flame,
+  LayoutGrid,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -31,6 +35,8 @@ export const SellerDashboard: React.FC = () => {
     orders,
     reviews,
     categories,
+    seasonalEvents,
+    setIsAiAssistantOpen,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -40,9 +46,39 @@ export const SellerDashboard: React.FC = () => {
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'ai-copywriter'>('inventory');
+  const [selectedSellerCategory, setSelectedSellerCategory] = useState<string>('all');
+  const [selectedSellerEvent, setSelectedSellerEvent] = useState<string>('all');
+  const [sellerSearchQuery, setSellerSearchQuery] = useState<string>('');
+  const [sellerSortBy, setSellerSortBy] = useState<'newest' | 'price-asc' | 'price-desc' | 'stock-asc' | 'rating'>('newest');
 
   // Filter products and orders belonging to this seller
-  const sellerProducts = products.filter((p) => p.sellerId === currentUser.id);
+  const allSellerProducts = products.filter((p) => p.sellerId === currentUser.id);
+  const sellerProducts = allSellerProducts
+    .filter((p) => {
+      if (selectedSellerCategory !== 'all' && p.category.toLowerCase() !== selectedSellerCategory.toLowerCase()) {
+        return false;
+      }
+      if (sellerSearchQuery.trim()) {
+        const query = sellerSearchQuery.toLowerCase().trim();
+        const matchesTitle = p.title.toLowerCase().includes(query);
+        const matchesBrand = p.brand.toLowerCase().includes(query);
+        const matchesCategory = p.category.toLowerCase().includes(query);
+        const matchesDesc = (p.shortDescription || p.description || '').toLowerCase().includes(query);
+        const matchesTags = p.tags?.some((t) => t.toLowerCase().includes(query));
+        if (!matchesTitle && !matchesBrand && !matchesCategory && !matchesDesc && !matchesTags) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sellerSortBy === 'price-asc') return a.price - b.price;
+      if (sellerSortBy === 'price-desc') return b.price - a.price;
+      if (sellerSortBy === 'stock-asc') return a.stock - b.stock;
+      if (sellerSortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      return 0;
+    });
+
   const sellerOrders = orders.filter((o) => o.items.some((i) => i.sellerId === currentUser.id));
 
   // Compute metrics
@@ -74,7 +110,7 @@ export const SellerDashboard: React.FC = () => {
     stock: 25,
     shortDescription: '',
     description: '',
-    images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'],
+    images: ['https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80'],
     isFeatured: false,
     isFlashDeal: false,
     discountPercentage: 0,
@@ -112,7 +148,7 @@ export const SellerDashboard: React.FC = () => {
       stock: 30,
       shortDescription: '',
       description: '',
-      images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'],
+      images: ['https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80'],
       isFeatured: false,
       isFlashDeal: false,
       discountPercentage: 0,
@@ -358,16 +394,101 @@ export const SellerDashboard: React.FC = () => {
       {/* TAB 1: Product Inventory */}
       {activeTab === 'inventory' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Your Store Listings</h2>
-            <button
-              id="create-product-btn"
-              onClick={handleOpenCreateModal}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Product</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Your Store Listings</h2>
+              <p className="text-xs text-slate-500">
+                Filter by category, explore seasonal campaigns, and optimize inventory with Nova AI.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsAiAssistantOpen(true)}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Nova Merchant AI</span>
+              </button>
+              <button
+                id="create-product-btn"
+                onClick={handleOpenCreateModal}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Product</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Horizontally Scrollable Category Menu Bar */}
+          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Scroll by Categories:</span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                Showing {sellerProducts.length} of {allSellerProducts.length} items
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-slate-300">
+              <button
+                onClick={() => setSelectedSellerCategory('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                  selectedSellerCategory === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>All Categories ({allSellerProducts.length})</span>
+              </button>
+
+              {categories.map((c) => {
+                const isSelected = selectedSellerCategory.toLowerCase() === c.name.toLowerCase();
+                const count = allSellerProducts.filter((p) => p.category.toLowerCase() === c.name.toLowerCase()).length;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedSellerCategory(c.name)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{c.name}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Seasonal Events Tag Bar for Merchant Campaigns */}
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-slate-300">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 shrink-0">
+                <Flame className="w-3.5 h-3.5 text-amber-600" />
+                <span>Seasonal Campaigns:</span>
+              </div>
+              {seasonalEvents.map((evt) => (
+                <button
+                  key={evt.id}
+                  onClick={() => setIsAiAssistantOpen(true)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Calendar className="w-3 h-3 text-amber-600" />
+                  <span>{evt.name}</span>
+                  <span className="font-mono text-[10px] text-amber-600 font-black">20% OFF</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">

@@ -44,10 +44,22 @@ import {
   Truck,
   Calendar,
   Percent,
+  Menu,
+  Tv,
+  Dumbbell,
+  Baby,
+  BookOpen,
+  Car,
+  Radio,
+  UtensilsCrossed,
+  Armchair,
+  Apple,
+  Cpu,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NotificationPopover } from '../customer/NotificationPopover';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { MobileNavDrawer } from './MobileNavDrawer';
 import { Gift } from 'lucide-react';
 
 interface HeaderProps {
@@ -102,8 +114,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCategoryMegaMenuOpen, setIsCategoryMegaMenuOpen] = useState(false);
+  const [megaMenuCategorySearch, setMegaMenuCategorySearch] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const categoryMenuRef = useRef<HTMLDivElement>(null);
@@ -133,6 +147,28 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
         return <Gamepad2 className={className} />;
       case 'Watch':
         return <Watch className={className} />;
+      case 'Tv':
+        return <Tv className={className} />;
+      case 'Dumbbell':
+        return <Dumbbell className={className} />;
+      case 'Baby':
+        return <Baby className={className} />;
+      case 'BookOpen':
+        return <BookOpen className={className} />;
+      case 'Car':
+        return <Car className={className} />;
+      case 'Radio':
+        return <Radio className={className} />;
+      case 'UtensilsCrossed':
+        return <UtensilsCrossed className={className} />;
+      case 'Armchair':
+        return <Armchair className={className} />;
+      case 'Apple':
+        return <Apple className={className} />;
+      case 'Cpu':
+        return <Cpu className={className} />;
+      case 'Sparkles':
+        return <Sparkles className={className} />;
       default:
         return <LayoutGrid className={className} />;
     }
@@ -245,6 +281,62 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
     })
     .slice(0, 5);
 
+  const matchingCategories = useMemo(() => {
+    if (!q) return [];
+    const qClean = q.replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+    const qWords = q.split(/[\s,&/-]+/).filter(Boolean);
+
+    return categories
+      .filter((cat) => {
+        const nameClean = cat.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+        const slugClean = cat.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const descClean = (cat.description || '').toLowerCase();
+        const subsClean = (cat.subcategories || []).map((s) => s.name.toLowerCase()).join(' ');
+
+        return (
+          nameClean.includes(qClean) ||
+          slugClean.includes(qClean) ||
+          descClean.includes(q) ||
+          subsClean.includes(q) ||
+          (qWords.length > 0 && qWords.some((w) => nameClean.includes(w) || slugClean.includes(w)))
+        );
+      })
+      .slice(0, 4);
+  }, [categories, q]);
+
+  const filteredMegaCategories = useMemo(() => {
+    const term = megaMenuCategorySearch.trim().toLowerCase();
+    if (!term) return categories;
+    const termClean = term.replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+    const termWords = term.split(/[\s,&/-]+/).filter(Boolean);
+
+    return categories.filter((cat) => {
+      const nameClean = cat.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+      const slugClean = cat.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const descClean = (cat.description || '').toLowerCase();
+      const subsClean = (cat.subcategories || []).map((s) => s.name.toLowerCase()).join(' ');
+
+      if (
+        nameClean.includes(termClean) ||
+        slugClean.includes(termClean) ||
+        descClean.includes(term) ||
+        subsClean.includes(term)
+      ) {
+        return true;
+      }
+      return (
+        termWords.length > 0 &&
+        termWords.every(
+          (w) =>
+            nameClean.includes(w) ||
+            slugClean.includes(w) ||
+            descClean.includes(w) ||
+            subsClean.includes(w)
+        )
+      );
+    });
+  }, [categories, megaMenuCategorySearch]);
+
   const matchingBrands = Array.from(
     new Set(
       products
@@ -319,9 +411,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
               <span>Free Spins ({freeSpinsLeft})</span>
             </button>
 
-            {/* Theme Switcher in top bar */}
-            <ThemeSwitcher variant="compact" />
-
             {/* Currency Selector */}
             <div className="relative">
               <button
@@ -362,7 +451,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
             <button
               id="role-switch-quick-btn"
               onClick={onOpenRoleSwitcher}
-              className="flex items-center gap-1 text-indigo-300 hover:text-indigo-200 transition-colors font-medium cursor-pointer"
+              className="hidden sm:flex items-center gap-1 text-indigo-300 hover:text-indigo-200 transition-colors font-medium cursor-pointer"
             >
               <span>Role: <strong className="capitalize text-white">{activeRole}</strong></span>
               <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded">Switch</span>
@@ -372,27 +461,27 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
       </div>
 
       {/* Main Header Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Logo & Role Badge */}
-          <div className="flex items-center gap-3 shrink-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
+          {/* Logo */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               id="brand-logo-btn"
               onClick={() => {
                 setFilters((prev) => ({ ...prev, searchQuery: '', category: 'all' }));
                 setActiveCustomerTab('shop');
               }}
-              className="flex items-center gap-2.5 text-left group cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2.5 text-left group cursor-pointer shrink-0"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform border border-amber-300/40">
-                <ShoppingCart className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform border border-amber-300/40">
+                <ShoppingCart className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 via-amber-600 to-slate-900 dark:to-white bg-clip-text text-transparent">
+                <span className="text-base sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 via-amber-600 to-slate-900 dark:to-white bg-clip-text text-transparent">
                   Cart<span className="text-orange-600">Nova</span>
                 </span>
-                <span className="block text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 -mt-1">
-                  Shop Like a Trillionaire
+                <span className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 -mt-1">
+                  Shop Smart. Shop CartNova.
                 </span>
               </div>
             </button>
@@ -407,8 +496,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
             </button>
           </div>
 
-          {/* Smart Search Bar with Category Selector & Voice Search */}
-          <div ref={searchContainerRef} className="flex-1 max-w-2xl relative">
+          {/* Smart Search Bar with Category Selector & Voice Search (Tablet / Desktop) */}
+          <div ref={searchContainerRef} className="hidden sm:block flex-1 max-w-2xl relative">
             <form onSubmit={handleSearchSubmit} className="relative">
               <div className="relative flex items-center bg-slate-100/90 hover:bg-slate-100 rounded-xl border border-slate-200/80 focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
                 {/* Category Dropdown Prefix */}
@@ -510,6 +599,34 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
                 >
                   {searchInput.trim() ? (
                     <div>
+                      {/* Matching Categories */}
+                      {matchingCategories.length > 0 && (
+                        <div className="mb-3 pb-2.5 border-b border-slate-100">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                            Matching Categories
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {matchingCategories.map((cat) => (
+                              <button
+                                key={cat.id}
+                                id={`search-suggest-cat-${cat.id}`}
+                                onClick={() => {
+                                  setFilters((prev) => ({ ...prev, category: cat.name, searchQuery: '' }));
+                                  setActiveCustomerTab('shop');
+                                  setSearchInput('');
+                                  setSearchFocused(false);
+                                  setIsMobileSearchOpen(false);
+                                }}
+                                className="px-2.5 py-1 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200/60 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                {getCategoryIcon(cat.iconName, 'w-3 h-3 text-orange-600')}
+                                <span>{cat.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Matching Brands */}
                       {matchingBrands.length > 0 && (
                         <div className="mb-3 pb-2.5 border-b border-slate-100">
@@ -673,383 +790,85 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
             </AnimatePresence>
           </div>
 
-          {/* Right Action Icons */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* Spin & Win Button */}
+          {/* Right Action Icons - Uncluttered interface centering on the consolidated Menu button */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Mobile Quick Search Button */}
             <button
-              id="header-spin-wheel-btn"
-              onClick={() => {
-                if (onOpenSpinWheel) onOpenSpinWheel();
-                else openSpinWheel();
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-black bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white rounded-xl shadow-md shadow-orange-600/25 transition-all cursor-pointer transform hover:scale-105 active:scale-95 animate-pulse"
-              title="Free Spins: Win Cash, Tech Products & Gourmet Food"
+              id="mobile-search-trigger-btn"
+              type="button"
+              onClick={() => setIsSearchModalOpen(true)}
+              className="sm:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+              aria-label="Search products"
+              title="Search products"
             >
-              <Gift className="w-4 h-4 text-yellow-200" />
-              <span className="hidden sm:inline">Free Spins</span>
-              {freeSpinsLeft > 0 && (
-                <span className="w-4 h-4 rounded-full bg-yellow-400 text-orange-950 font-black text-[10px] flex items-center justify-center shadow-xs">
-                  {freeSpinsLeft}
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Spotlight Search shortcut for desktop (⌘K) */}
+            <button
+              id="header-spotlight-search-btn"
+              type="button"
+              onClick={() => setIsSearchModalOpen(true)}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              title="Spotlight Search (⌘K)"
+            >
+              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <span>Search</span>
+              <kbd className="px-1 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-500">
+                ⌘K
+              </kbd>
+            </button>
+
+            {/* CONSOLIDATED PRIMARY MENU BUTTON
+                Contains: Home, Products, Categories, Search, Cart, Orders, Payments, Profile,
+                Sign In/Sign Up, Themes/Modes, Admin, and Sign Out */}
+            <button
+              id="main-menu-btn"
+              type="button"
+              onClick={() => setIsMobileNavOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-orange-600/25 transition-all cursor-pointer border border-amber-300/40 shrink-0"
+              aria-label="Open Navigation Menu"
+              title="Menu: Home, Products, Categories, Search, Cart, Orders, Payments, Profile, Sign In/Sign Up, Themes/Modes, Admin, Sign Out"
+            >
+              {isLoggedIn && currentUser.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-white/80 shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-white shrink-0" />
+              )}
+              <span className="font-extrabold tracking-tight">Menu</span>
+
+              {/* Dynamic Shopping Cart badge inside Menu button */}
+              {cartCount > 0 && (
+                <span
+                  id="menu-cart-count-badge"
+                  className="px-1.5 py-0.5 rounded-full bg-yellow-300 text-orange-950 font-black text-[10px] sm:text-[11px] shadow-xs flex items-center gap-0.5"
+                >
+                  <ShoppingCart className="w-2.5 h-2.5 inline" />
+                  <span>{cartCount}</span>
                 </span>
               )}
+
+              {/* Active Orders indicator */}
+              {cartCount === 0 && activeOrdersCount > 0 && (
+                <span
+                  id="menu-active-orders-dot"
+                  className="w-2.5 h-2.5 rounded-full bg-amber-300 ring-2 ring-white/40 animate-pulse"
+                  title={`${activeOrdersCount} order in transit`}
+                />
+              )}
             </button>
-
-            {/* AI Assistant Button */}
-            <button
-              id="header-ai-assistant-btn"
-              onClick={() => setIsAiAssistantOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 dark:from-slate-800 dark:to-slate-700 text-slate-800 dark:text-white rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer"
-              title="Nova AI Shopping Assistant"
-            >
-              <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />
-              <span className="hidden md:inline">Nova AI</span>
-            </button>
-
-            {/* Customer Specific Icons */}
-            {activeRole === 'customer' && (
-              <>
-                {/* Wishlist */}
-                <button
-                  id="header-wishlist-btn"
-                  onClick={() => setActiveCustomerTab('wishlist')}
-                  className={`p-2.5 rounded-xl border transition-colors relative cursor-pointer ${
-                    activeCustomerTab === 'wishlist'
-                      ? 'bg-rose-50 border-rose-200 text-rose-600'
-                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                  }`}
-                  aria-label="Wishlist"
-                  title="Wishlist"
-                >
-                  <Heart className="w-5 h-5" />
-                  {wishlist.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white rounded-full text-[11px] font-bold flex items-center justify-center shadow-xs">
-                      {wishlist.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* Notifications Trigger & Popover */}
-                <div className="relative">
-                  <button
-                    id="header-notifications-btn"
-                    onClick={() => setIsNotificationPopoverOpen(!isNotificationPopoverOpen)}
-                    className={`p-2.5 rounded-xl border transition-colors relative cursor-pointer ${
-                      activeCustomerTab === 'notifications' || isNotificationPopoverOpen
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                        : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                    }`}
-                    aria-label="Customer Notifications"
-                    title="Notifications & Alerts"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-rose-500 text-white rounded-full text-[10px] font-extrabold flex items-center justify-center shadow-xs animate-pulse">
-                        {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-                      </span>
-                    )}
-                  </button>
-
-                  <NotificationPopover
-                    isOpen={isNotificationPopoverOpen}
-                    onClose={() => setIsNotificationPopoverOpen(false)}
-                  />
-                </div>
-
-                {/* Customer Support Button */}
-                <button
-                  id="header-support-btn"
-                  onClick={() => setActiveCustomerTab('support')}
-                  className={`p-2.5 rounded-xl border transition-colors relative cursor-pointer ${
-                    activeCustomerTab === 'support'
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                  }`}
-                  aria-label="Customer Support & Help Center"
-                  title="24/7 Customer Care, Live Support & Tickets"
-                >
-                  <LifeBuoy className="w-5 h-5" />
-                </button>
-
-                {/* Orders Tab */}
-                <button
-                  id="header-orders-btn"
-                  onClick={() => setActiveCustomerTab('orders')}
-                  className={`px-3 py-2 rounded-xl border transition-all relative cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
-                    activeCustomerTab === 'orders'
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-2xs'
-                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                  }`}
-                  aria-label="My Orders"
-                  title="My Orders & Live Courier Tracking"
-                >
-                  <div className="relative">
-                    <Package className="w-4 h-4" />
-                    {activeOrdersCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full ring-2 ring-white animate-pulse" />
-                    )}
-                  </div>
-                  <span className="hidden sm:inline">Orders</span>
-                  {customerOrders.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full font-bold">
-                      {customerOrders.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* Cart Drawer Trigger */}
-                <button
-                  id="header-cart-btn"
-                  onClick={() => setIsCartOpen(true)}
-                  className="flex items-center gap-2.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm shadow-md shadow-indigo-600/20 transition-colors cursor-pointer"
-                  aria-label="Cart"
-                >
-                  <div className="relative">
-                    <ShoppingCart className="w-5 h-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] font-extrabold flex items-center justify-center">
-                        {cartCount}
-                      </span>
-                    )}
-                  </div>
-                  <span className="hidden sm:inline">{formatPrice(cartSubtotal)}</span>
-                </button>
-              </>
-            )}
-
-            {/* Visual Theme Switcher */}
-            <div className="hidden sm:block">
-              <ThemeSwitcher variant="dropdown" />
-            </div>
-
-            {/* Auth / Profile Area */}
-            {!isLoggedIn ? (
-              <div className="flex items-center gap-1.5 ml-1">
-                <button
-                  id="header-sign-in-btn"
-                  onClick={() => openAuthModal('login', 'customer')}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-slate-200"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Customer Log In</span>
-                </button>
-
-                <button
-                  id="header-admin-sign-in-btn"
-                  onClick={() => openAuthModal('login', 'admin')}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 rounded-xl border border-purple-200 transition-colors cursor-pointer shadow-2xs"
-                  title="Sign In as Store Administrator"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Admin Sign In</span>
-                </button>
-
-                <button
-                  id="header-sign-up-btn"
-                  onClick={() => openAuthModal('signup', 'customer')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 rounded-xl shadow-xs transition-all cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sign Up</span>
-                </button>
-              </div>
-            ) : (
-              <div ref={userMenuRef} className="relative ml-1">
-                <button
-                  id="header-user-profile-btn"
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200"
-                  title={`${currentUser.name} (${activeRole.toUpperCase()})`}
-                >
-                  <div className="relative">
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
-                      className="w-8 h-8 rounded-lg object-cover ring-1 ring-slate-200"
-                      referrerPolicy="no-referrer"
-                    />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                  </div>
-                  <span className="hidden xl:inline text-xs font-semibold text-slate-800 max-w-[100px] truncate">
-                    {currentUser.name}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
-                </button>
-
-                {/* Account Popover Menu */}
-                <AnimatePresence>
-                  {isUserMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      id="header-account-popover"
-                      className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-slate-800 divide-y divide-slate-100"
-                    >
-                      {/* User Profile Header */}
-                      <div
-                        onClick={() => {
-                          if (activeRole === 'customer') {
-                            setActiveCustomerTab('profile');
-                            setIsUserMenuOpen(false);
-                          }
-                        }}
-                        className={`px-4 py-3 ${activeRole === 'customer' ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={currentUser.avatar}
-                            alt={currentUser.name}
-                            className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shadow-2xs"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold text-slate-900 truncate">{currentUser.name}</p>
-                            <p className="text-xs text-slate-500 truncate">{currentUser.email || 'Customer Account'}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-md uppercase">
-                            {currentUser.role}
-                          </span>
-                          {currentUser.authProvider === 'google' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-semibold rounded-md">
-                              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24">
-                                <path
-                                  fill="#4285F4"
-                                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                                />
-                                <path
-                                  fill="#34A853"
-                                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                />
-                                <path
-                                  fill="#FBBC05"
-                                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                                />
-                                <path
-                                  fill="#EA4335"
-                                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                                />
-                              </svg>
-                              <span>Google Auth</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Quick Navigation */}
-                      <div className="py-1.5">
-                        {activeRole === 'customer' && (
-                          <>
-                            <button
-                              id="menu-profile-btn"
-                              onClick={() => {
-                                setActiveCustomerTab('profile');
-                                setIsUserMenuOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-900 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <User className="w-4 h-4 text-indigo-600" />
-                              <span>My Customer Profile</span>
-                            </button>
-
-                            <button
-                              id="menu-notifications-btn"
-                              onClick={() => {
-                                setActiveCustomerTab('notifications');
-                                setIsUserMenuOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center justify-between cursor-pointer"
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <Bell className="w-4 h-4 text-indigo-500" />
-                                <span>Notifications Center</span>
-                              </div>
-                              {unreadNotificationsCount > 0 && (
-                                <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full">
-                                  {unreadNotificationsCount}
-                                </span>
-                              )}
-                            </button>
-
-                            <button
-                              id="menu-orders-btn"
-                              onClick={() => {
-                                setActiveCustomerTab('orders');
-                                setIsUserMenuOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <Package className="w-4 h-4 text-slate-400" />
-                              <span>My Orders & Tracking</span>
-                            </button>
-
-                            <button
-                              id="menu-wishlist-btn"
-                              onClick={() => {
-                                setActiveCustomerTab('wishlist');
-                                setIsUserMenuOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <Heart className="w-4 h-4 text-slate-400" />
-                              <span>Saved Wishlist ({wishlist.length})</span>
-                            </button>
-                            <button
-                              id="menu-support-btn"
-                              onClick={() => {
-                                setActiveCustomerTab('support');
-                                setIsUserMenuOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-2.5 cursor-pointer"
-                            >
-                              <LifeBuoy className="w-4 h-4 text-indigo-600" />
-                              <span>Customer Support & FAQs</span>
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          id="menu-role-switch-btn"
-                          onClick={() => {
-                            onOpenRoleSwitcher();
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-2.5 cursor-pointer"
-                        >
-                          <User className="w-4 h-4 text-slate-400" />
-                          <span>Switch Persona / Role Hub</span>
-                        </button>
-                      </div>
-
-                      {/* Log Out Action */}
-                      <div className="py-1.5">
-                        <button
-                          id="header-logout-btn"
-                          onClick={() => {
-                            logout();
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-rose-50 text-xs font-semibold text-rose-600 flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <LogOut className="w-4 h-4 text-rose-500" />
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       {/* CUSTOMER SUB-HEADER CATEGORY NAVIGATION BAR */}
       {activeRole === 'customer' && (
-        <div className="border-t border-slate-100 bg-white/95">
+        <div className="hidden sm:block border-t border-slate-100 bg-white/95">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-10 gap-2 overflow-x-auto text-xs scrollbar-none">
               {/* All Categories Mega Menu Button */}
@@ -1102,52 +921,95 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[380px] overflow-y-auto pr-1">
-                        {categories.map((cat) => {
-                          const isSelected = filters.category.toLowerCase() === cat.name.toLowerCase();
-                          const count = products.filter(
-                            (p) => p.category.toLowerCase() === cat.name.toLowerCase()
-                          ).length;
+                      {/* Category Search Input */}
+                      <div className="relative mb-3">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id="mega-category-search-input"
+                          type="text"
+                          placeholder="Search categories (e.g., Phones & Tablets)..."
+                          value={megaMenuCategorySearch}
+                          onChange={(e) => setMegaMenuCategorySearch(e.target.value)}
+                          className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 focus:border-indigo-500 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-hidden transition-all"
+                        />
+                        {megaMenuCategorySearch && (
+                          <button
+                            type="button"
+                            onClick={() => setMegaMenuCategorySearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                            title="Clear category search"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
 
-                          return (
-                            <button
-                              key={cat.id}
-                              id={`mega-cat-item-${cat.id}`}
-                              onClick={() => {
-                                setFilters((prev) => ({ ...prev, category: cat.name, searchQuery: '' }));
-                                setIsCategoryMegaMenuOpen(false);
-                                setActiveCustomerTab('shop');
-                              }}
-                              className={`p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-indigo-50 border-indigo-600/60 ring-1 ring-indigo-600/30'
-                                  : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                                  isSelected ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'
+                      {filteredMegaCategories.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                          <Layers className="w-6 h-6 mx-auto text-slate-300 mb-1.5" />
+                          <p className="font-semibold text-slate-700">No categories matching "{megaMenuCategorySearch}"</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Try searching for "Phones & Tablets", "Tech", or "Shoes"</p>
+                          <button
+                            type="button"
+                            onClick={() => setMegaMenuCategorySearch('')}
+                            className="mt-2.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                          >
+                            Reset Search
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[380px] overflow-y-auto pr-1">
+                          {filteredMegaCategories.map((cat) => {
+                            const isSelected = filters.category.toLowerCase() === cat.name.toLowerCase();
+                            const count = products.filter((p) => {
+                              const pCat = (p.category || '').toLowerCase();
+                              const cCat = cat.name.toLowerCase();
+                              return (
+                                pCat === cCat ||
+                                (cCat.includes('phones & tablets') && (pCat.includes('phones & tablets') || pCat.includes('mobile')))
+                              );
+                            }).length;
+
+                            return (
+                              <button
+                                key={cat.id}
+                                id={`mega-cat-item-${cat.id}`}
+                                onClick={() => {
+                                  setFilters((prev) => ({ ...prev, category: cat.name, searchQuery: '' }));
+                                  setIsCategoryMegaMenuOpen(false);
+                                  setActiveCustomerTab('shop');
+                                }}
+                                className={`p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-indigo-50 border-indigo-600/60 ring-1 ring-indigo-600/30'
+                                    : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                                 }`}
                               >
-                                {getCategoryIcon(cat.iconName, 'w-4 h-4')}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold text-xs text-slate-900 truncate">
-                                    {cat.name}
-                                  </span>
-                                  <span className="text-[10px] font-semibold text-slate-400">
-                                    {count}
-                                  </span>
+                                <div
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                                    isSelected ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'
+                                  }`}
+                                >
+                                  {getCategoryIcon(cat.iconName, 'w-4 h-4')}
                                 </div>
-                                <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                                  {cat.description}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-bold text-xs text-slate-900 truncate">
+                                      {cat.name}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-slate-400">
+                                      {count}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                                    {cat.description}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1193,6 +1055,32 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
 
               {/* Quick Specials, Amazon & Temu Features */}
               <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-100 dark:border-slate-800">
+                <button
+                  id="subnav-referrals-btn"
+                  onClick={() => setActiveCustomerTab('referrals')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black transition-all cursor-pointer shadow-xs ${
+                    activeCustomerTab === 'referrals'
+                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400'
+                      : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border border-amber-300/40'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                  <span>Earn ₦5,000</span>
+                </button>
+
+                <button
+                  id="subnav-stores-btn"
+                  onClick={() => setActiveCustomerTab('seller-store')}
+                  className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                    activeCustomerTab === 'seller-store'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-300/40'
+                  }`}
+                >
+                  <Store className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Stores</span>
+                </button>
+
                 <button
                   id="subnav-seasonal-events-btn"
                   onClick={() => setActiveCustomerTab('seasonal-events')}
@@ -1263,6 +1151,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher, onOpenSpinWh
           </div>
         </div>
       )}
+
+      {/* Slide-out Mobile Navigation Drawer */}
+      <MobileNavDrawer
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
+        onOpenRoleSwitcher={onOpenRoleSwitcher}
+      />
     </header>
   );
 };

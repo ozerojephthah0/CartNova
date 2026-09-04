@@ -51,9 +51,13 @@ import {
   Bell,
   Info,
   LifeBuoy,
+  Menu,
+  SlidersHorizontal,
+  CreditCard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadDigitalInvoice, printDigitalInvoice } from '../../utils/invoiceGenerator';
+import { OrderInformationMenuDrawer } from './OrderInformationMenuDrawer';
 
 interface TrackingStep {
   key: string;
@@ -126,6 +130,8 @@ export const OrdersView: React.FC = () => {
   const [deliveryNotesModalOrder, setDeliveryNotesModalOrder] = useState<Order | null>(null);
   const [deliveryNoteText, setDeliveryNoteText] = useState('Please leave at front gate with security if unavailable.');
   const [trackingNotificationActive, setTrackingNotificationActive] = useState<Record<string, boolean>>({});
+  const [infoMenuOrder, setInfoMenuOrder] = useState<Order | null>(null);
+  const [inlineMenuExpandedOrders, setInlineMenuExpandedOrders] = useState<Record<string, boolean>>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -746,15 +752,16 @@ export const OrdersView: React.FC = () => {
             const isDelivered = order.status === 'delivered';
 
             if (viewLayout === 'summaries') {
-              // 4A. ENHANCED ORDER SUMMARY CARD WITH DIRECT INVOICE DOWNLOAD
+              const isInlineOpen = !!inlineMenuExpandedOrders[order.id];
+
               return (
                 <div
                   key={order.id}
                   id={`order-summary-${order.id}`}
                   className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-slate-300/90"
                 >
-                  {/* Summary Card Header */}
-                  <div className="p-5 bg-gradient-to-r from-slate-50/90 via-white to-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Summary Card Header - Clean & Focused */}
+                  <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50/90 via-white to-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center flex-wrap gap-2.5">
                         <span className="text-base font-black text-slate-900 font-mono">
@@ -771,204 +778,281 @@ export const OrdersView: React.FC = () => {
                           })}
                         </span>
                       </div>
-
-                      {order.trackingNumber && (
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <span className="font-medium text-slate-600">Carrier:</span>
-                          <span className="font-bold text-slate-800">{order.carrier || 'Logistics Express'}</span>
-                          <span className="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                            {order.trackingNumber}
-                          </span>
-                          <button
-                            onClick={() => handleCopyTracking(order.trackingNumber!)}
-                            className="p-1 hover:bg-slate-200 text-slate-500 hover:text-indigo-600 rounded transition-colors cursor-pointer"
-                            title="Copy Tracking Number"
-                          >
-                            {copiedTrackingId === order.trackingNumber ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Quick Top Invoicing, Tracking & Reorder Actions */}
+                    {/* Prominent Menu Button & Primary Actions */}
                     <div className="flex items-center flex-wrap gap-2">
+                      <button
+                        id={`order-menu-btn-${order.id}`}
+                        onClick={() => setInfoMenuOrder(order)}
+                        className="px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md shadow-orange-600/25 active:scale-95 transition-all cursor-pointer"
+                        title="Open Information Menu (Driver, Delivery, Address, Items & Payment)"
+                      >
+                        <Menu className="w-4 h-4" />
+                        <span>Menu</span>
+                      </button>
+
                       <button
                         id={`track-items-btn-${order.id}`}
                         onClick={() => setSelectedTrackingOrder(order)}
-                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                        title="Track items in live interactive GPS radar"
+                        className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                        title="Open live interactive GPS radar"
                       >
-                        <Compass className="w-3.5 h-3.5" />
-                        <span>Track Items</span>
+                        <Compass className="w-3.5 h-3.5 text-indigo-600" />
+                        <span className="hidden sm:inline">Radar</span>
                       </button>
 
                       <button
-                        id={`download-invoice-btn-${order.id}`}
-                        onClick={(e) => handleDownloadInvoice(order, e)}
-                        className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                        title="Download official digital tax invoice (.html / printable PDF)"
+                        onClick={() =>
+                          setInlineMenuExpandedOrders((prev) => ({
+                            ...prev,
+                            [order.id]: !prev[order.id],
+                          }))
+                        }
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Toggle extra details inline on page"
                       >
-                        <Download className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Download Invoice</span>
-                      </button>
-
-                      <button
-                        id={`view-invoice-btn-${order.id}`}
-                        onClick={() => setSelectedInvoiceOrder(order)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                        title="View and print digital receipt"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>View Receipt</span>
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                        <span>{isInlineOpen ? 'Hide Details' : 'Details'}</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Summary Card Items List */}
-                  <div className="p-5 space-y-4">
-                    <div className="divide-y divide-slate-100">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="py-3 first:pt-0 last:pb-0 flex items-start gap-3.5">
-                          <img
-                            src={item.productImage}
-                            alt={item.productTitle}
-                            className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-                            referrerPolicy="no-referrer"
-                            onClick={() => {
-                              const p = products.find((pr) => pr.id === item.productId);
-                              if (p) viewProductDetail(p);
-                            }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4
+                  {/* Clean, Uncluttered Default View (Essential Information Only) */}
+                  <div className="p-4 sm:p-5 space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      {/* Compact Item Preview */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex -space-x-3 overflow-hidden shrink-0">
+                          {order.items.slice(0, 3).map((item, idx) => (
+                            <img
+                              key={idx}
+                              src={item.productImage}
+                              alt={item.productTitle}
+                              className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-xs cursor-pointer hover:scale-105 transition-transform"
+                              referrerPolicy="no-referrer"
                               onClick={() => {
                                 const p = products.find((pr) => pr.id === item.productId);
                                 if (p) viewProductDetail(p);
                               }}
-                              className="text-xs font-bold text-slate-900 line-clamp-1 hover:text-indigo-600 cursor-pointer transition-colors"
-                            >
-                              {item.productTitle}
-                            </h4>
-                            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-slate-400 mt-0.5">
-                              {item.sellerName && (
-                                <span>
-                                  Sold by <strong className="text-slate-600">{item.sellerName}</strong>
-                                </span>
-                              )}
-                              {item.selectedVariant &&
-                                Object.entries(item.selectedVariant).map(([k, v]) => (
-                                  <span key={k} className="text-indigo-600 font-medium">
-                                    • {k}: {v}
-                                  </span>
-                                ))}
-                            </div>
-                            <div className="text-xs text-slate-600 font-semibold mt-1">
-                              Qty: <span className="font-bold text-slate-900">{item.quantity}</span> × {formatPrice(item.unitPrice)}
-                            </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className="text-xs font-black text-slate-900 block">
-                              {formatPrice(item.unitPrice * item.quantity)}
-                            </span>
-                          </div>
+                            />
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                        <div className="min-w-0">
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                            {order.items[0]?.productTitle}
+                            {order.items.length > 1 && (
+                              <span className="text-slate-500 font-medium"> +{order.items.length - 1} more item(s)</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {order.items.reduce((s, i) => s + i.quantity, 0)} total unit(s) •{' '}
+                            {order.status === 'delivered' ? (
+                              <span className="text-emerald-600 font-semibold">Delivered safely</span>
+                            ) : (
+                              <span className="text-orange-600 font-semibold">ETA: {order.estimatedDelivery || 'In 1-2 Days'}</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
 
-                    {/* Delivery & Shipping Info Snippet */}
-                    <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-bold text-slate-800">Ship to: </span>
-                          <span>
-                            {order.shippingAddress.fullName || order.customerName} — {order.shippingAddress.street},{' '}
-                            {order.shippingAddress.city}, {order.shippingAddress.state}
+                      {/* Total Amount Paid & Quick Menu Trigger */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <div className="text-left sm:text-right">
+                          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                            Total Paid
+                          </span>
+                          <span className="text-base sm:text-lg font-black text-slate-900 font-mono">
+                            {formatPrice(order.totalAmount)}
                           </span>
                         </div>
+
+                        <button
+                          onClick={() => setInfoMenuOrder(order)}
+                          className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-orange-200/80"
+                        >
+                          <Menu className="w-3.5 h-3.5 text-orange-600" />
+                          <span>View Menu</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Secondary Information Notice Banner */}
+                    <div className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/70 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2">
+                        <Info className="w-4 h-4 text-orange-600 shrink-0" />
+                        <span className="text-[11px] text-slate-600">
+                          Driver info, delivery status, order details, payment info, and delivery address are organized inside the <strong>Menu</strong>.
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {order.status === 'delivered' ? (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Delivered successfully</span>
-                          </span>
-                        ) : order.status === 'cancelled' ? (
-                          <span className="text-rose-600 font-bold">Cancelled & Refunded</span>
-                        ) : (
-                          <span className="text-indigo-600 font-bold flex items-center gap-1">
-                            <Truck className="w-3.5 h-3.5" />
-                            <span>ETA: {order.estimatedDelivery || 'In 1-2 Days'}</span>
-                          </span>
-                        )}
+                        <button
+                          onClick={() => setInfoMenuOrder(order)}
+                          className="text-xs font-bold text-orange-600 hover:text-orange-700 underline underline-offset-2 cursor-pointer"
+                        >
+                          Open Menu Drawer →
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Summary Card Footer Breakdown & Actions */}
-                  <div className="p-5 pt-3.5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-3 text-slate-500">
-                      <span>Paid via <strong className="text-slate-800 uppercase">{order.paymentMethod.replace('_', ' ')}</strong></span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-emerald-700 font-semibold bg-emerald-100/90 px-2 py-0.5 rounded text-[10px]">
-                        Payment Verified
-                      </span>
-                    </div>
+                  {/* Expandable Section (When toggled inline) */}
+                  <AnimatePresence>
+                    {isInlineOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="border-t border-slate-200 bg-slate-50/50 p-4 sm:p-6 space-y-5"
+                      >
+                        {/* 1. Driver & Contact Info */}
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Truck className="w-4 h-4 text-indigo-600" />
+                              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                                Assigned Driver & Contact
+                              </h4>
+                            </div>
+                            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              Active Courier
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                              <strong className="text-xs text-slate-900 block">Emmanuel Adebayo (Babatunde)</strong>
+                              <p className="text-[11px] text-slate-500">
+                                {order.carrier || 'Logistics Express'} • Toyota HiAce (Plate: KJA-482-XA)
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleCallCourier(order)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                              >
+                                <PhoneCall className="w-3.5 h-3.5" />
+                                <span>Call Driver</span>
+                              </button>
+                              <button
+                                onClick={() => handleToggleNotification(order.id)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                                <span>{trackingNotificationActive[order.id] ? 'Alerts On' : 'Alerts'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4">
-                      <div className="text-right">
-                        <span className="text-[11px] text-slate-400 block">Total Paid:</span>
-                        <span className="text-base font-black text-slate-900">{formatPrice(order.totalAmount)}</span>
-                      </div>
+                        {/* 2. Delivery Address */}
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2 text-xs">
+                          <div className="flex items-center gap-2 text-slate-800 font-extrabold uppercase tracking-wider">
+                            <MapPin className="w-4 h-4 text-emerald-600" />
+                            <span>Delivery Address</span>
+                          </div>
+                          <p className="text-slate-800 font-bold">
+                            {order.shippingAddress.fullName || order.customerName}
+                          </p>
+                          <p className="text-slate-600">
+                            {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}
+                          </p>
+                          <p className="text-slate-500">Phone: {order.customerPhone || '+234 803 123 4567'}</p>
+                        </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          id={`track-items-footer-btn-${order.id}`}
-                          onClick={() => setSelectedTrackingOrder(order)}
-                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                        >
-                          <Compass className="w-3.5 h-3.5" />
-                          <span>Track Items</span>
-                        </button>
-                        {order.status === 'pending' && (
+                        {/* 3. Itemized Order Details */}
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                            Order Details ({order.items.length} Items)
+                          </h4>
+                          <div className="divide-y divide-slate-100">
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3">
+                                <img
+                                  src={item.productImage}
+                                  alt={item.productTitle}
+                                  className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="text-xs font-bold text-slate-900 truncate">
+                                    {item.productTitle}
+                                  </h5>
+                                  <p className="text-[11px] text-slate-500">
+                                    Qty: {item.quantity} × {formatPrice(item.unitPrice)}
+                                  </p>
+                                </div>
+                                <span className="text-xs font-black text-slate-900 font-mono">
+                                  {formatPrice(item.unitPrice * item.quantity)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 4. Payment Information */}
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-slate-800 font-extrabold uppercase tracking-wider">
+                              <CreditCard className="w-4 h-4 text-emerald-600" />
+                              <span>Payment Information</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              Verified
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Method:</span>
+                            <span className="font-bold uppercase text-slate-900">{order.paymentMethod.replace('_', ' ')}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Subtotal:</span>
+                            <span className="font-medium text-slate-800">{formatPrice(order.subtotal)}</span>
+                          </div>
+                          {order.discountAmount > 0 && (
+                            <div className="flex justify-between text-emerald-600">
+                              <span>Discount:</span>
+                              <span className="font-bold">-{formatPrice(order.discountAmount)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-slate-600">
+                            <span>Tax (7.5%):</span>
+                            <span className="text-slate-800">{formatPrice(order.tax)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+                            <span>Total Paid:</span>
+                            <span className="text-orange-600 font-mono">{formatPrice(order.totalAmount)}</span>
+                          </div>
+                        </div>
+
+                        {/* 5. Invoicing & Actions */}
+                        <div className="flex items-center flex-wrap gap-2 pt-2">
                           <button
-                            onClick={() => {
-                              if (confirm(`Cancel order #${order.orderNumber}? Payment will be refunded.`)) {
-                                cancelOrder(order.id);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-semibold transition-colors cursor-pointer"
+                            onClick={(e) => handleDownloadInvoice(order, e)}
+                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                           >
-                            Cancel
+                            <Download className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Download Invoice</span>
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleReorder(order)}
-                          className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Buy Again</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveCustomerTab('support');
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-                          title="Get support, request return, or start dispute"
-                        >
-                          <LifeBuoy className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Need Help?</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                          <button
+                            onClick={() => setSelectedInvoiceOrder(order)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>View Receipt</span>
+                          </button>
+                          <button
+                            onClick={() => handleReorder(order)}
+                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reorder</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             }
@@ -1035,6 +1119,16 @@ export const OrdersView: React.FC = () => {
 
                   {/* Top Action Buttons */}
                   <div className="flex items-center flex-wrap gap-2 self-start sm:self-auto">
+                    <button
+                      id={`order-radar-menu-btn-${order.id}`}
+                      onClick={() => setInfoMenuOrder(order)}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-orange-600/25 active:scale-95 transition-all cursor-pointer"
+                      title="Open Order Information Menu (Driver, Delivery, Address, Items & Payment)"
+                    >
+                      <Menu className="w-3.5 h-3.5" />
+                      <span>Menu</span>
+                    </button>
+
                     <button
                       onClick={(e) => handleDownloadInvoice(order, e)}
                       className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
@@ -2088,6 +2182,22 @@ export const OrdersView: React.FC = () => {
           </div>
         </AnimatePresence>
       )}
+
+      {/* 8. Mobile-Friendly Order Information Menu Drawer */}
+      <OrderInformationMenuDrawer
+        isOpen={!!infoMenuOrder}
+        onClose={() => setInfoMenuOrder(null)}
+        order={infoMenuOrder}
+        isOutForDelivery={infoMenuOrder ? simulatedSubStep[infoMenuOrder.id] === 'out_for_delivery' : false}
+        onAdvanceStage={handleAdvanceOrderStage}
+        onCallCourier={handleCallCourier}
+        onToggleAlerts={handleToggleNotification}
+        isAlertActive={infoMenuOrder ? !!trackingNotificationActive[infoMenuOrder.id] : false}
+        onDownloadInvoice={handleDownloadInvoice}
+        onViewReceipt={(ord) => setSelectedInvoiceOrder(ord)}
+        onCancelOrder={cancelOrder}
+        onOpenDropoffNotes={(ord) => setDeliveryNotesModalOrder(ord)}
+      />
     </div>
   );
 };

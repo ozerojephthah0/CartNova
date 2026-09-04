@@ -31,9 +31,9 @@ interface AdminProductModalProps {
 // Curated high-res Unsplash photo presets for fast 1-click photo selection
 const IMAGE_PRESETS = [
   {
-    category: 'Audio & Tech',
-    name: 'ANC Headphones',
-    url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
+    category: 'Phones & Gadgets',
+    name: 'iPhone 17 Pro Max Titanium',
+    url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&auto=format&fit=crop&q=80',
   },
   {
     category: 'Audio & Tech',
@@ -151,7 +151,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const [description, setDescription] = useState('');
 
   const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80',
   ]);
   const [newImageUrl, setNewImageUrl] = useState('');
 

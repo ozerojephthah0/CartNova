@@ -21,20 +21,54 @@ import {
   ChevronRight,
   Layers,
   CheckCircle2,
+  Tv,
+  Armchair,
+  Dumbbell,
+  Baby,
+  BookOpen,
+  Car,
+  Radio,
+  Apple,
+  Cpu,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Subcategory / tag recommendations per category
 const CATEGORY_TAG_SUGGESTIONS: Record<string, string[]> = {
-  'Phones & Mobile': ['5G', 'Foldable', 'Flagship', 'AMOLED', 'Titanium', 'Charger'],
-  'Tablets & iPads': ['M4 Chip', 'OLED', 'Stylus', 'Keyboard', 'Paper-like', 'Productivity', 'Cellular'],
-  'Boots & Footwear': ['Leather', 'Waterproof', 'Chelsea', 'Sneakers', 'Running', 'Handcrafted'],
-  'Clothes & Fashion': ['Hoodie', 'Linen', 'Denim', 'Jacket', 'Silk', 'Streetwear'],
-  'Bags & Luggage': ['Backpack', 'Commuter', 'Leather', 'Waterproof', 'Duffel', 'Sling'],
-  'Audio & Wearables': ['Noise Cancelling', 'Wireless', 'Smartwatch', 'Spatial Audio', 'Titanium'],
-  'Electronics & Computers': ['Laptop', '4K Monitor', 'USB-C', 'Ultralight', 'Ergonomic'],
-  'Gaming & Gear': ['Mechanical', 'Wireless', 'RGB', 'Desk Mat', 'Precision'],
-  'Smart Home & Living': ['Ambient Light', 'Smart Diffuser', 'Automation', 'Voice Control'],
+  'Electronics': [
+    'Televisions',
+    'Refrigerators',
+    'Washing Machines',
+    'Microwaves',
+    'Air Conditioners',
+    'Fans',
+    'Speakers',
+    'Home Theater Systems',
+    'DVD Players',
+    'Electric Kettles',
+    'Blenders',
+    'Irons',
+    'Smart TVs',
+    'Home Appliances',
+  ],
+  'Phones & Tablets': ['5G Flagship', 'Foldable', 'AMOLED', 'Stylus', 'Titanium', 'Fast Charging'],
+  'Computers': ['M-Series', 'Workstation', 'Ultrabook', '4K Monitor', 'Mechanical Keyboard', 'USB-C Hub'],
+  'Headphones & Earbuds': ['Active Noise Cancelling', 'Spatial Audio', 'Wireless', 'Hi-Res', 'Studio', 'Bluetooth 5.3'],
+  'Fashion': ['Luxury Designer', 'Cashmere', 'Leather Jacket', 'Tailored Suit', 'Silk', 'Streetwear'],
+  'Shoes': ['Italian Leather', 'Chelsea Boots', 'Carbon Running', 'Sneakers', 'Waterproof', 'Handcrafted'],
+  'Beauty': ['Vitamin C', 'Anti-Aging', 'Ceramide', 'Clean Skincare', 'Luxury Perfume', 'Ionic Hair Dryer'],
+  'Home & Kitchen': ['Espresso Barista', 'Robot Vacuum', 'Cast Iron', 'Air Fryer', 'Air Purifier', 'Cookware'],
+  'Furniture': ['Ergonomic Chair', 'Motorized Desk', 'Velvet Lounge', 'Oak Dining', 'Minimalist Bookshelf'],
+  'Sports & Fitness': ['Football Boots', 'Basketballs', 'Sportswear', 'Adjustable Dumbbells', 'Yoga Mat', 'Gym Equipment'],
+  'Groceries': ['Drinks', 'Soap', 'Rice & Grains', 'Artisan Coffee', 'Cooking Oil', 'Pantry Staples'],
+  'Baby Products': ['Ergonomic Carrier', '4K Monitor', 'Silicone Weaning', 'Montessori Toys', 'Organic Cotton'],
+  'Accessories': ['Chargers', 'Phone Holders', 'Bags & Backpacks', 'Sunglasses', 'Caps', 'Shoes', 'Wallets'],
+  'Books': ['Educational', 'Technology', 'Business', 'Fiction', 'Children’s Books', 'Design & Architecture'],
+  'Games & Toys': ['PS5', 'PS4 Pro', 'Xbox Series', 'PS3', 'PS4 Pads', 'PS2', 'Game Box Patch', 'Ninja Turtle Toys', 'STEM Toys'],
+  'Toys & Games': ['PS5', 'PS4 Pro', 'Xbox Series', 'PS3', 'PS4 Pads', 'PS2', 'Game Box Patch', 'Ninja Turtle Toys', 'STEM Toys'],
+  'Automotive': ['Vehicle Repairs & Maintenance', 'Car Engines & Parts', 'Electric Vehicles (EVs)', 'OBD2 Scanner', 'EV Charger', 'Dashcam', 'Jump Starter'],
+  'Gadgets': ['Samsung Galaxy XCover 4s', 'iPhone 17 Pro Max', 'iPhone 17L', 'Infinix Hot 50', 'Smart Watches', 'Power Banks', 'Digital Cameras'],
 };
 
 export const CategoryBar: React.FC = () => {
@@ -66,6 +100,28 @@ export const CategoryBar: React.FC = () => {
         return <Gamepad2 className={className} />;
       case 'Watch':
         return <Watch className={className} />;
+      case 'Tv':
+        return <Tv className={className} />;
+      case 'Armchair':
+        return <Armchair className={className} />;
+      case 'Dumbbell':
+        return <Dumbbell className={className} />;
+      case 'Baby':
+        return <Baby className={className} />;
+      case 'BookOpen':
+        return <BookOpen className={className} />;
+      case 'Car':
+        return <Car className={className} />;
+      case 'Radio':
+        return <Radio className={className} />;
+      case 'Apple':
+        return <Apple className={className} />;
+      case 'Cpu':
+        return <Cpu className={className} />;
+      case 'UtensilsCrossed':
+        return <UtensilsCrossed className={className} />;
+      case 'Sparkles':
+        return <Sparkles className={className} />;
       default:
         return <LayoutGrid className={className} />;
     }

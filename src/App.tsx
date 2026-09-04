@@ -3,6 +3,7 @@ import { StoreProvider, useStore } from './context/StoreContext';
 import { ToastContainer } from './components/common/Toast';
 import { Header } from './components/common/Header';
 import { RoleSwitcher } from './components/common/RoleSwitcher';
+import { MobileBottomNav } from './components/common/MobileBottomNav';
 
 // Customer Components
 import { HeroBanner } from './components/customer/HeroBanner';
@@ -20,6 +21,8 @@ import { SeasonalEventModal } from './components/customer/SeasonalEventModal';
 import { LiveSupportWidget } from './components/customer/LiveSupportWidget';
 import { ProductDetailPage } from './components/customer/ProductDetailPage';
 import { ProductDetailModal } from './components/customer/ProductDetailModal';
+import { ReferralRewardsView } from './components/customer/ReferralRewardsView';
+import { SellerStorefrontView } from './components/customer/SellerStorefrontView';
 import { CartDrawer } from './components/customer/CartDrawer';
 import { CheckoutModal } from './components/customer/CheckoutModal';
 import { AiAssistantModal } from './components/customer/AiAssistantModal';
@@ -75,7 +78,7 @@ const MainContent: React.FC = () => {
       />
 
       {/* Main Container View Based on Active Role */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 pb-24 md:pb-6">
         {/* CUSTOMER VIEW */}
         {activeRole === 'customer' && (
           <>
@@ -117,6 +120,10 @@ const MainContent: React.FC = () => {
             {activeCustomerTab === 'notifications' && <NotificationsView />}
 
             {activeCustomerTab === 'support' && <CustomerSupportView />}
+
+            {activeCustomerTab === 'referrals' && <ReferralRewardsView />}
+
+            {activeCustomerTab === 'seller-store' && <SellerStorefrontView />}
           </>
         )}
 
@@ -129,18 +136,18 @@ const MainContent: React.FC = () => {
 
       {/* Floating Temu Spin & Win Launcher Button */}
       {activeRole === 'customer' && (
-        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2.5">
+        <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-30 flex flex-col items-end gap-2.5">
           <button
             id="floating-spin-win-btn"
             onClick={() => setIsSpinWheelOpen(true)}
-            className="group flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white rounded-full shadow-2xl hover:shadow-orange-500/50 border-2 border-yellow-300 transform hover:scale-108 active:scale-95 transition-all cursor-pointer animate-bounce"
+            className="group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white rounded-full shadow-2xl hover:shadow-orange-500/50 border-2 border-yellow-300 transform hover:scale-108 active:scale-95 transition-all cursor-pointer animate-bounce"
             title="Spin Lucky Wheel for $100 Voucher Bundle"
           >
             <div className="relative">
-              <Gift className="w-5 h-5 text-yellow-200 group-hover:rotate-12 transition-transform" />
+              <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-200 group-hover:rotate-12 transition-transform" />
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-300 rounded-full animate-ping" />
             </div>
-            <span className="font-black text-xs uppercase tracking-wider text-yellow-100">
+            <span className="font-black text-[11px] sm:text-xs uppercase tracking-wider text-yellow-100">
               Spin & Win $100
             </span>
           </button>
@@ -148,7 +155,7 @@ const MainContent: React.FC = () => {
       )}
 
       {/* Global Footer */}
-      <footer className="bg-slate-950 text-slate-400 border-t border-slate-800/80 mt-16">
+      <footer className="bg-slate-950 text-slate-400 border-t border-slate-800/80 mt-16 pb-20 md:pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800/80 text-xs">
             {/* Brand column */}
@@ -160,11 +167,11 @@ const MainContent: React.FC = () => {
                 <span className="text-lg font-black text-white tracking-tight">CartNova</span>
               </div>
               <p className="text-slate-400 leading-relaxed text-[11px]">
-                The next-generation marketplace — Shop like a trillionaire with factory direct pricing, free shipping, and 90-day free returns.
+                The next-generation marketplace — Shop smart with factory direct pricing, free shipping, and 90-day free returns.
               </p>
               <div className="flex items-center gap-2 text-orange-400 font-semibold pt-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Shop Like a Trillionaire</span>
+                <span>Shop Smart. Shop CartNova.</span>
               </div>
             </div>
 
@@ -215,6 +222,30 @@ const MainContent: React.FC = () => {
                 Customer Care & Hubs
               </span>
               <ul className="space-y-1.5 text-slate-400">
+                <li>
+                  <button
+                    onClick={() => {
+                      setActiveCustomerTab('referrals');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="hover:text-amber-300 text-amber-400 transition-colors cursor-pointer font-bold flex items-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Invite & Earn ₦5,000 + VIP Rewards</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
+                      setActiveCustomerTab('seller-store');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Store className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Verified Merchant Storefronts</span>
+                  </button>
+                </li>
                 <li>
                   <button
                     onClick={() => {
@@ -301,7 +332,7 @@ const MainContent: React.FC = () => {
           </div>
 
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
-            <p>© 2026 CartNova • Shop Like a Trillionaire. All rights reserved.</p>
+            <p>© 2026 CartNova • Shop Smart. Shop CartNova. All rights reserved.</p>
             <div className="flex items-center gap-2 bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-slate-300 font-medium text-[11px]">
@@ -317,6 +348,9 @@ const MainContent: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Persistent Mobile Bottom Navigation Bar */}
+      <MobileBottomNav onOpenRoleSwitcher={() => setIsRoleSwitcherOpen(true)} />
 
       {/* Global Modals & Drawers */}
       <RoleSwitcher isOpen={isRoleSwitcherOpen} onClose={() => setIsRoleSwitcherOpen(false)} />

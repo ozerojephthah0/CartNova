@@ -12,6 +12,7 @@ import {
   FilterState,
   ToastNotification,
   CustomerNotification,
+  NotificationType,
   SupportTicket,
   SupportMessage,
   SupportCategory,
@@ -30,6 +31,10 @@ import {
   SeasonalEvent,
   SpinWheelPrize,
   ClaimedSpinReward,
+  ReferralStats,
+  SimulatedTransaction,
+  SimulatedPaymentStatus,
+  SimulatedPaymentConfig,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -79,15 +84,18 @@ interface StoreContextType {
   setIsAuthModalOpen: (open: boolean) => void;
   authModalMode: 'login' | 'signup';
   setAuthModalMode: (mode: 'login' | 'signup') => void;
-  authModalRole: 'customer' | 'admin';
-  setAuthModalRole: (role: 'customer' | 'admin') => void;
-  openAuthModal: (mode?: 'login' | 'signup', role?: 'customer' | 'admin') => void;
+  authModalRole: UserRole;
+  setAuthModalRole: (role: UserRole) => void;
+  openAuthModal: (mode?: 'login' | 'signup', role?: UserRole) => void;
   closeAuthModal: () => void;
-  loginWithEmail: (email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
-  signupWithEmail: (name: string, email: string, password?: string, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
-  loginWithGoogle: (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: 'customer' | 'admin') => Promise<{ success: boolean; message: string }>;
+  loginWithEmail: (email: string, password?: string, preferredRole?: UserRole) => Promise<{ success: boolean; message: string }>;
+  signupWithEmail: (name: string, email: string, password?: string, preferredRole?: UserRole) => Promise<{ success: boolean; message: string }>;
+  loginWithGoogle: (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: UserRole) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
+  toggleUserStatus: (userId: string) => void;
+  updateUserRole: (userId: string, newRole: UserRole) => void;
+  addUser: (userData: Partial<UserProfile>) => void;
 
   // Catalog & categories
   products: Product[];
@@ -96,6 +104,9 @@ interface StoreContextType {
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   toggleFeaturedProduct: (id: string) => void;
+  addCategory: (category: Category) => void;
+  updateCategory: (id: string, updates: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
 
   // Cart
   cart: CartItem[];
@@ -132,9 +143,10 @@ interface StoreContextType {
   orders: Order[];
   createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Order;
   updateOrderStatus: (orderId: string, status: OrderStatus, note?: string) => void;
+  updateOrderTracking: (orderId: string, carrier: string, trackingNumber: string) => void;
   cancelOrder: (orderId: string) => void;
 
-  // Reviews
+  // Reviews & Moderation
   reviews: Review[];
   addReview: (
     productId: string,
@@ -147,6 +159,16 @@ interface StoreContextType {
   voteHelpfulReview: (reviewId: string) => void;
   replyToReview: (reviewId: string, message: string) => void;
   addSellerReplyToReview: (reviewId: string, message: string) => void;
+  deleteReview: (id: string) => void;
+  toggleReviewApproval: (id: string) => void;
+  replyToReviewAsAdmin: (reviewId: string, message: string, moderatorName?: string) => void;
+
+  // Sellers & Storefronts
+  verifySeller: (sellerId: string, isVerified: boolean) => void;
+  updateSellerCommission: (sellerId: string, rate: number) => void;
+  selectedSellerId: string | null;
+  setSelectedSellerId: (id: string | null) => void;
+  viewSellerStore: (sellerId: string) => void;
 
   // Search & Filters
   filters: FilterState;
@@ -169,6 +191,14 @@ interface StoreContextType {
   appliedCoupon: Coupon | null;
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
+  addCoupon: (coupon: Coupon) => void;
+  toggleCouponStatus: (code: string) => void;
+  deleteCoupon: (code: string) => void;
+
+  // Referrals & Rewards
+  referralData: ReferralStats;
+  claimDailyStreakReward: () => { points: number; bonusMessage: string; newStreak: number };
+  redeemRewardPoints: (pointsCost: number, rewardType: 'wallet' | 'coupon' | 'shipping') => { success: boolean; message: string };
 
   // Active Modals & Views
   quickViewProduct: Product | null;
@@ -182,8 +212,8 @@ interface StoreContextType {
   setIsCheckoutOpen: (open: boolean) => void;
   isAiAssistantOpen: boolean;
   setIsAiAssistantOpen: (open: boolean) => void;
-  activeCustomerTab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events';
-  setActiveCustomerTab: (tab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events') => void;
+  activeCustomerTab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events' | 'referrals' | 'seller-store';
+  setActiveCustomerTab: (tab: 'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events' | 'referrals' | 'seller-store') => void;
 
   // Seasonal Events & Shopping Campaigns Feature (20% OFF)
   seasonalEvents: SeasonalEvent[];
@@ -219,7 +249,8 @@ interface StoreContextType {
   setIsNovaPrimeModalOpen: (open: boolean) => void;
 
   // Amazon 1-Click Buy Feature
-  oneClickBuy: (product: Product, quantity?: number) => void;
+  oneClickBuy: (product: Product, quantity?: number, selectedVariants?: Record<string, string>) => void;
+  openOneClickBuyModal: (product: Product, quantity?: number, selectedVariants?: Record<string, string>) => void;
   oneClickBuySuccessOrder: Order | null;
   setOneClickBuySuccessOrder: (order: Order | null) => void;
 
@@ -249,6 +280,7 @@ interface StoreContextType {
   deleteNotification: (id: string) => void;
   clearAllNotifications: () => void;
   addNotification: (notification: Omit<CustomerNotification, 'id' | 'timestamp' | 'read'>) => void;
+  broadcastNotification: (title: string, message: string, type?: NotificationType, priority?: 'low' | 'normal' | 'high') => void;
   isNotificationPopoverOpen: boolean;
   setIsNotificationPopoverOpen: (open: boolean) => void;
   handleNotificationAction: (notification: CustomerNotification) => void;
@@ -287,6 +319,8 @@ interface StoreContextType {
     refundMethod: 'wallet' | 'card' | 'replacement',
     details?: string
   ) => { success: boolean; rmaNumber: string; ticket: SupportTicket };
+  approveRefundDispute: (ticketId: string, orderId: string, refundAmount?: number, resolutionNote?: string) => void;
+  rejectRefundDispute: (ticketId: string, reasonNote?: string) => void;
 
   // Free Spins & Lucky Spin Wheel Rewards (Money, Products, Food, Passes)
   freeSpinsLeft: number;
@@ -322,6 +356,35 @@ interface StoreContextType {
   addToast: (type: ToastNotification['type'], title: string, message: string) => void;
   removeToast: (id: string) => void;
 
+  // Simulated Payment & Gmail Alert System (DEMO MODE)
+  simulatedTransactions: SimulatedTransaction[];
+  simulatedPaymentConfig: SimulatedPaymentConfig;
+  selectedSimulatedTxn: SimulatedTransaction | null;
+  setSelectedSimulatedTxn: (txn: SimulatedTransaction | null) => void;
+  isSimulatedAlertModalOpen: boolean;
+  setIsSimulatedAlertModalOpen: (open: boolean) => void;
+  recordSimulatedPayment: (data: {
+    orderId: string;
+    orderNumber: string;
+    customerName: string;
+    customerEmail: string;
+    amount: number;
+    currency?: string;
+    paymentMethod?: string;
+    items: Array<{ id: string; title: string; price: number; quantity: number; image?: string }>;
+    initialStatus?: SimulatedPaymentStatus;
+  }) => Promise<SimulatedTransaction | null>;
+  updateSimulatedTxnStatus: (id: string, status: SimulatedPaymentStatus, note?: string) => Promise<void>;
+  resendSimulatedTxnAlert: (id: string) => Promise<void>;
+  updateSimulatedConfig: (newConfig: Partial<SimulatedPaymentConfig>) => Promise<void>;
+  triggerManualTestEmailAlert: (params?: {
+    adminEmail?: string;
+    amount?: number;
+    customerName?: string;
+    paymentMethod?: string;
+  }) => Promise<{ success: boolean; message: string; transaction?: SimulatedTransaction }>;
+  fetchSimulatedTransactions: () => Promise<void>;
+
   // Utilities
   resetStoreData: () => void;
 }
@@ -355,21 +418,38 @@ const STORAGE_KEYS = {
   FREE_SPINS: 'cartnova_free_spins_v3',
   WALLET_BALANCE: 'cartnova_wallet_balance_v3',
   CLAIMED_SPIN_REWARDS: 'cartnova_claimed_spin_rewards_v3',
+  SIMULATED_TRANSACTIONS: 'cartnova_simulated_transactions_v2',
+  SIMULATED_CONFIG: 'cartnova_simulated_config_v2',
 };
 
 const DEFAULT_POPULAR_SEARCHES = [
-  'iPad Pro M4',
-  'iPhone 16 Pro',
-  'Galaxy Tab S10',
+  'Televisions',
+  'Samsung Refrigerator',
+  'LG Washing Machine',
+  'Microwave Oven',
+  'Air Conditioners',
+  'Dyson Fan',
+  'Bluetooth Speaker',
+  'Home Theater System',
+  'DVD Player',
+  'Electric Kettle',
+  'Ninja Blender',
+  'Steam Iron',
+  'PS5',
+  'iPhone 17 Pro Max',
+  'Infinix Hot 50',
+  'Samsung Galaxy XCover 4s',
+  'Ninja Turtle toys',
+  'PS4 Pads',
+  'Game Box Patch',
+  'Football Boots',
+  'EV Charger',
+  'OBD2 Diagnostic Scanner',
+  'Basmati Rice',
+  'Shea Butter Soap',
+  'Spalding Basketball',
   'Chelsea Boots',
-  'Pixel 9 Fold',
-  'Surface Pro 11',
-  'Mechanical Keyboard',
-  'Noise Cancelling',
-  'Leather Backpack',
-  'AirPods Pro',
-  '4K Monitor',
-  'Nothing Phone',
+  'Adjustable Dumbbells',
 ];
 
 export const GUEST_USER: UserProfile = {
@@ -383,26 +463,43 @@ export const GUEST_USER: UserProfile = {
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load initial persistent states
   const [products, setProducts] = useState<Product[]>(() => {
+    const DELETED_PRODUCT_IDS = new Set(['prod-1', 'prod-head-3']);
+    const isDeleted = (p: { id: string; images?: string[]; title?: string }) => {
+      if (DELETED_PRODUCT_IDS.has(p.id)) return true;
+      if (p.images?.some((img) => typeof img === 'string' && (img.includes('headset-blue-bg') || img.includes('headset-yellow')))) return true;
+      if (p.title && (p.title.includes('NovaSound Pro ANC Wireless Headphones') || p.title.includes('AeroSpatial 7.1 Surround Pro Gaming Headset'))) return true;
+      return false;
+    };
+
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
       if (saved) {
         const parsed: Product[] = JSON.parse(saved);
         const initialMap = new Map(INITIAL_PRODUCTS.map((p) => [p.id, p]));
-        const updated = parsed.map((p) => {
-          const init = initialMap.get(p.id);
-          if (init) {
-            return {
-              ...p,
-              price: init.price,
-              originalPrice: init.originalPrice,
-              discountPercentage: init.discountPercentage,
-            };
-          }
-          return p;
-        });
+        const updated = parsed
+          .filter((p) => !isDeleted(p))
+          .map((p) => {
+            const init = initialMap.get(p.id);
+            if (init) {
+              return {
+                ...p,
+                price: init.price,
+                originalPrice: init.originalPrice,
+                discountPercentage: init.discountPercentage,
+                images: init.images,
+                category: init.category,
+                tags: init.tags || p.tags,
+              };
+            }
+            // Sanitize any legacy product categories to Phones & Tablets
+            if (p.category && (p.category.toLowerCase().includes('mobile') || p.category.toLowerCase() === 'phones')) {
+              return { ...p, category: 'Phones & Tablets' };
+            }
+            return p;
+          });
         const existingIds = new Set(updated.map((p) => p.id));
-        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
-        const merged = [...updated, ...missing];
+        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id) && !isDeleted(p));
+        const merged = [...updated, ...missing].filter((p) => !isDeleted(p));
         try {
           localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
         } catch {
@@ -416,7 +513,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>(() => {
+    try {
+      const saved = localStorage.getItem('cartnova_categories');
+      if (saved) {
+        const parsed: Category[] = JSON.parse(saved);
+        const initialMap = new Map(INITIAL_CATEGORIES.map((c) => [c.slug, c]));
+        // Normalize any legacy categories (e.g., phones-mobile) to phones-tablets
+        const sanitized = parsed.map((c) => {
+          if (c.slug === 'phones-mobile' || c.name.toLowerCase().includes('phones & mobile')) {
+            return initialMap.get('phones-tablets') || c;
+          }
+          return initialMap.get(c.slug) || c;
+        });
+        const existingSlugs = new Set(sanitized.map((c) => c.slug));
+        const missing = INITIAL_CATEGORIES.filter((c) => !existingSlugs.has(c.slug));
+        const merged = [...sanitized, ...missing];
+        try {
+          localStorage.setItem('cartnova_categories', JSON.stringify(merged));
+        } catch {
+          // Ignore storage quota errors
+        }
+        return merged;
+      }
+      return INITIAL_CATEGORIES;
+    } catch {
+      return INITIAL_CATEGORIES;
+    }
+  });
 
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
     try {
@@ -492,9 +616,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Auth modal state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
-  const [authModalRole, setAuthModalRole] = useState<'customer' | 'admin'>('customer');
+  const [authModalRole, setAuthModalRole] = useState<UserRole>('customer');
 
-  const openAuthModal = (mode: 'login' | 'signup' = 'login', role?: 'customer' | 'admin') => {
+  const openAuthModal = (mode: 'login' | 'signup' = 'login', role?: UserRole) => {
     setAuthModalMode(mode);
     if (role) {
       setAuthModalRole(role);
@@ -509,7 +633,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CART);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed: CartItem[] = JSON.parse(saved);
+        return parsed.filter((item) => item.productId !== 'prod-1' && item.productId !== 'prod-head-3');
+      }
+      return [];
     } catch {
       return [];
     }
@@ -518,9 +646,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WISHLIST);
-      return saved ? JSON.parse(saved) : ['prod-1', 'prod-3'];
+      const list: string[] = saved ? JSON.parse(saved) : ['prod-gadg-iphone17promax', 'prod-3'];
+      return list.filter((id) => id !== 'prod-1' && id !== 'prod-head-3');
     } catch {
-      return ['prod-1', 'prod-3'];
+      return ['prod-gadg-iphone17promax', 'prod-3'];
     }
   });
 
@@ -569,7 +698,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  const [coupons] = useState<Coupon[]>(INITIAL_COUPONS);
+  const [coupons, setCoupons] = useState<Coupon[]>(() => {
+    try {
+      const saved = localStorage.getItem('cartnova_coupons');
+      return saved ? JSON.parse(saved) : INITIAL_COUPONS;
+    } catch {
+      return INITIAL_COUPONS;
+    }
+  });
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
   // Search History State
@@ -614,10 +750,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (trimmed) {
       addRecentSearch(trimmed);
     }
+    // Detect if query is a direct category name match or specific gadget search
+    let targetCategory = category !== undefined ? category : undefined;
+    const qLower = trimmed.toLowerCase();
+
+    // If searching for specific devices like iPhone, reset category if it was previously filtering another category
+    if (qLower.includes('iphone') || qLower.includes('apple') || qLower.includes('galaxy') || qLower.includes('phone')) {
+      if (targetCategory && !targetCategory.toLowerCase().includes('phone') && !targetCategory.toLowerCase().includes('gadget') && !targetCategory.toLowerCase().includes('all')) {
+        targetCategory = 'all';
+      }
+    }
+
+    if (targetCategory === undefined || targetCategory === 'all') {
+      const qNorm = trimmed.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+      if (qNorm) {
+        const foundCat = categories.find((c) => {
+          const cNorm = c.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+          const sNorm = c.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return qNorm === cNorm || qNorm === sNorm;
+        });
+        if (foundCat) {
+          targetCategory = foundCat.name;
+        }
+      }
+    }
+
     setFilters((prev) => ({
       ...prev,
       searchQuery: trimmed,
-      category: category !== undefined ? category : prev.category,
+      subcategory: '',
+      category: targetCategory !== undefined ? targetCategory : (qLower.includes('iphone') ? 'all' : prev.category),
     }));
     setActiveCustomerTab('shop');
     setIsSearchModalOpen(false);
@@ -638,7 +800,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [activeCustomerTab, setActiveCustomerTab] = useState<
-    'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub'
+    'shop' | 'product-detail' | 'orders' | 'wishlist' | 'profile' | 'notifications' | 'support' | 'slash-game' | 'mystery-box' | 'prime-hub' | 'seasonal-events' | 'referrals' | 'seller-store'
   >('shop');
 
   // Slash It to ₦0 state (Temu Price Slash)
@@ -778,6 +940,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [isLiveSupportOpen, setIsLiveSupportOpen] = useState(false);
 
+  // Simulated Payment & Gmail Alert System (DEMO MODE)
+  const [simulatedTransactions, setSimulatedTransactions] = useState<SimulatedTransaction[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SIMULATED_TRANSACTIONS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  const [simulatedPaymentConfig, setSimulatedPaymentConfig] = useState<SimulatedPaymentConfig>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SIMULATED_CONFIG);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return {
+      adminEmail: 'ozerojephthah0@gmail.com',
+      enableAutoAlerts: true,
+      enableFiveMinuteWindow: true,
+      autoExpireSeconds: 300,
+      simulationSpeed: 'realtime',
+      demoBannerEnabled: true,
+      smtpConfigured: false,
+    };
+  });
+
+  const [selectedSimulatedTxn, setSelectedSimulatedTxn] = useState<SimulatedTransaction | null>(null);
+  const [isSimulatedAlertModalOpen, setIsSimulatedAlertModalOpen] = useState(false);
+
   const [supportChatMessages, setSupportChatMessages] = useState<SupportMessage[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SUPPORT_CHAT);
@@ -815,11 +1010,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem(STORAGE_KEYS.RECENTLY_VIEWED);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((id) => id !== 'prod-1' && id !== 'prod-head-3');
+        }
       }
-      return ['prod-1', 'prod-2', 'prod-4'];
+      return ['prod-gadg-iphone17promax', 'prod-2', 'prod-4'];
     } catch {
-      return ['prod-1', 'prod-2', 'prod-4'];
+      return ['prod-gadg-iphone17promax', 'prod-2', 'prod-4'];
     }
   });
 
@@ -972,6 +1169,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const initialFilters: FilterState = {
     searchQuery: '',
     category: 'all',
+    subcategory: '',
     brands: [],
     minPrice: 0,
     maxPrice: 5000000,
@@ -1050,6 +1248,243 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   }, [supportChatMessages]);
 
+  // Sync simulated state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SIMULATED_TRANSACTIONS, JSON.stringify(simulatedTransactions));
+    } catch {}
+  }, [simulatedTransactions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SIMULATED_CONFIG, JSON.stringify(simulatedPaymentConfig));
+    } catch {}
+  }, [simulatedPaymentConfig]);
+
+  // Fetch simulated transactions and configuration from backend
+  const fetchSimulatedTransactions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/simulated-transactions');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.transactions && Array.isArray(data.transactions)) {
+          setSimulatedTransactions(data.transactions);
+        }
+        if (data.config) {
+          setSimulatedPaymentConfig(data.config);
+        }
+      }
+    } catch {
+      // Backend request fallback to local state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSimulatedTransactions();
+    const interval = setInterval(fetchSimulatedTransactions, 10000);
+    return () => clearInterval(interval);
+  }, [fetchSimulatedTransactions]);
+
+  // Record simulated payment and dispatch admin Gmail alert
+  const recordSimulatedPayment = async (data: {
+    orderId: string;
+    orderNumber: string;
+    customerName: string;
+    customerEmail: string;
+    amount: number;
+    currency?: string;
+    paymentMethod?: string;
+    items: Array<{ id: string; title: string; price: number; quantity: number; image?: string }>;
+    initialStatus?: SimulatedPaymentStatus;
+  }): Promise<SimulatedTransaction | null> => {
+    try {
+      const res = await fetch('/api/simulated-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          currency: data.currency || currencyCode,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.transaction) {
+          setSimulatedTransactions((prev) => [result.transaction, ...prev.filter((t) => t.id !== result.transaction.id)]);
+          addToast(
+            'success',
+            '📧 TEST PAYMENT ALERT SENT',
+            `Simulated payment recorded for #${data.orderNumber} & alert dispatched to ${simulatedPaymentConfig.adminEmail} [DEMO MODE]`
+          );
+          return result.transaction;
+        }
+      }
+    } catch (err) {
+      console.error('Simulated transaction error:', err);
+    }
+
+    // Local fallback
+    const fallbackTxn: SimulatedTransaction = {
+      id: `TEST-TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      orderId: data.orderId,
+      orderNumber: data.orderNumber,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      amount: data.amount,
+      currency: data.currency || currencyCode,
+      paymentMethod: data.paymentMethod || 'TEST_CARD',
+      status: data.initialStatus || 'TEST_RECEIVED',
+      items: data.items,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+      isTestMode: true,
+      emailAlert: {
+        recipient: simulatedPaymentConfig.adminEmail,
+        sent: true,
+        sentAt: new Date().toISOString(),
+        subject: `CartNova — TEST PAYMENT ALERT — Order #${data.orderNumber} [SIMULATED TRANSACTION]`,
+        status: 'SIMULATED_DISPATCH',
+        messageId: `<sim-local-${Date.now()}@cartnova.dev>`,
+      },
+      timeline: [
+        {
+          status: 'TEST_PENDING',
+          timestamp: new Date().toISOString(),
+          note: 'Customer initiated test checkout',
+        },
+        {
+          status: data.initialStatus || 'TEST_RECEIVED',
+          timestamp: new Date().toISOString(),
+          note: `Test payment alert dispatched to admin (${simulatedPaymentConfig.adminEmail})`,
+        },
+      ],
+    };
+    setSimulatedTransactions((prev) => [fallbackTxn, ...prev]);
+    return fallbackTxn;
+  };
+
+  const updateSimulatedTxnStatus = async (
+    id: string,
+    status: SimulatedPaymentStatus,
+    note?: string
+  ) => {
+    try {
+      const res = await fetch(`/api/simulated-transactions/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, note }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.transaction) {
+          setSimulatedTransactions((prev) =>
+            prev.map((t) => (t.id === id ? result.transaction : t))
+          );
+          if (selectedSimulatedTxn?.id === id) {
+            setSelectedSimulatedTxn(result.transaction);
+          }
+        }
+      }
+    } catch {
+      setSimulatedTransactions((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                status,
+                updatedAt: new Date().toISOString(),
+                timeline: [
+                  ...t.timeline,
+                  {
+                    status,
+                    timestamp: new Date().toISOString(),
+                    note: note || `Status updated to ${status} in DEMO mode`,
+                  },
+                ],
+              }
+            : t
+        )
+      );
+    }
+    addToast('info', 'Simulated Status Updated', `Test Transaction status set to ${status}`);
+  };
+
+  const resendSimulatedTxnAlert = async (id: string) => {
+    try {
+      const res = await fetch(`/api/simulated-transactions/${id}/resend-alert`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.transaction) {
+          setSimulatedTransactions((prev) =>
+            prev.map((t) => (t.id === id ? result.transaction : t))
+          );
+          if (selectedSimulatedTxn?.id === id) {
+            setSelectedSimulatedTxn(result.transaction);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error resending alert:', err);
+    }
+    addToast('success', '📧 Test Email Alert Dispatched', `Test notification re-sent to ${simulatedPaymentConfig.adminEmail}`);
+  };
+
+  const updateSimulatedConfig = async (newConfig: Partial<SimulatedPaymentConfig>) => {
+    try {
+      const res = await fetch('/api/admin/test-email-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.config) {
+          setSimulatedPaymentConfig(result.config);
+        }
+      }
+    } catch {
+      setSimulatedPaymentConfig((prev) => ({ ...prev, ...newConfig }));
+    }
+    addToast('success', 'Settings Saved', 'Simulated payment & admin email alert preferences updated.');
+  };
+
+  const triggerManualTestEmailAlert = async (params?: {
+    adminEmail?: string;
+    amount?: number;
+    customerName?: string;
+    paymentMethod?: string;
+  }) => {
+    try {
+      const res = await fetch('/api/admin/test-email-dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params || {}),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.transaction) {
+          setSimulatedTransactions((prev) => [result.transaction, ...prev]);
+        }
+        addToast(
+          'success',
+          '⚡ TEST PAYMENT ALERT FIRED',
+          `Simulated alert successfully dispatched to ${params?.adminEmail || simulatedPaymentConfig.adminEmail}`
+        );
+        return {
+          success: true,
+          message: result.message || 'Alert dispatched',
+          transaction: result.transaction,
+        };
+      }
+    } catch (err: any) {
+      addToast('error', 'Dispatch Error', err.message || 'Failed to dispatch test email');
+      return { success: false, message: err.message };
+    }
+    return { success: false, message: 'Server did not return transaction' };
+  };
+
   // Toast notification helper
   const addToast = (type: ToastNotification['type'], title: string, message: string) => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
@@ -1063,15 +1498,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Authentication Handlers (Customer or Admin)
-  const loginWithEmail = async (email: string, password?: string, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
+  // Authentication Handlers (Customer, Seller, or Admin)
+  const loginWithEmail = async (email: string, password?: string, preferredRole?: UserRole): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       addToast('error', 'Login Failed', 'Please provide a valid email address');
       return { success: false, message: 'Email is required' };
     }
 
-    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : 'customer');
+    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('seller') ? 'seller' : 'customer');
 
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existingUser) {
@@ -1085,7 +1520,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoggedIn(true);
       addToast(
         'success',
-        targetRole === 'admin' ? '🛡️ Admin Access Granted' : 'Welcome Back',
+        targetRole === 'admin' ? '🛡️ Admin Access Granted' : targetRole === 'seller' ? '🏪 Merchant Portal Ready' : 'Welcome Back',
         `Logged in as ${updatedUser.name} (${targetRole.toUpperCase()})`
       );
       closeAuthModal();
@@ -1095,14 +1530,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Auto-create user profile if email not yet registered
     const nameFromEmail = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const newUser: UserProfile = {
-      id: (targetRole === 'admin' ? 'admin-' : 'cust-') + Date.now(),
-      name: nameFromEmail || (targetRole === 'admin' ? 'Admin Manager' : 'Customer'),
+      id: (targetRole === 'admin' ? 'admin-' : targetRole === 'seller' ? 'seller-' : 'cust-') + Date.now(),
+      name: nameFromEmail || (targetRole === 'admin' ? 'Admin Manager' : targetRole === 'seller' ? 'Marketplace Merchant' : 'Customer'),
       email: cleanEmail,
       role: targetRole,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nameFromEmail || cleanEmail)}`,
       authProvider: 'email',
       createdAt: new Date().toISOString(),
       phone: '+234 800 000 0000',
+      storeName: targetRole === 'seller' ? `${nameFromEmail} Official Store` : undefined,
+      isVerifiedSeller: targetRole === 'seller' ? true : undefined,
     };
 
     setAllUsers((prev) => [newUser, ...prev]);
@@ -1111,17 +1548,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoggedIn(true);
     addToast(
       'success',
-      targetRole === 'admin' ? '🛡️ Admin Account Created' : 'Account Created & Signed In',
+      targetRole === 'admin' ? '🛡️ Admin Account Created' : targetRole === 'seller' ? '🏪 Merchant Account Created' : 'Account Created & Signed In',
       `Welcome to CartNova, ${newUser.name}! Accessing as ${targetRole.toUpperCase()}`
     );
     closeAuthModal();
     return { success: true, message: 'Welcome to CartNova' };
   };
 
-  const signupWithEmail = async (name: string, email: string, password?: string, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
+  const signupWithEmail = async (name: string, email: string, password?: string, preferredRole?: UserRole): Promise<{ success: boolean; message: string }> => {
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
-    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : 'customer');
+    const targetRole = preferredRole || (cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('seller') ? 'seller' : 'customer');
 
     if (!cleanName || !cleanEmail) {
       addToast('error', 'Sign Up Failed', 'Full name and email are required');
@@ -1134,6 +1571,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...existingUser,
         name: cleanName || existingUser.name,
         role: targetRole,
+        storeName: targetRole === 'seller' ? (existingUser.storeName || `${cleanName} Official Store`) : existingUser.storeName,
       };
       setAllUsers((prev) => prev.map((u) => (u.id === updatedExisting.id ? updatedExisting : u)));
       setCurrentUser(updatedExisting);
@@ -1141,7 +1579,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoggedIn(true);
       addToast(
         'info',
-        targetRole === 'admin' ? '🛡️ Admin Account Updated' : 'Account Exists',
+        targetRole === 'admin' ? '🛡️ Admin Account Updated' : targetRole === 'seller' ? '🏪 Merchant Portal Synced' : 'Account Exists',
         `Signed in as ${cleanName} (${targetRole.toUpperCase()})`
       );
       closeAuthModal();
@@ -1149,7 +1587,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const newUser: UserProfile = {
-      id: (targetRole === 'admin' ? 'admin-' : 'cust-') + Date.now(),
+      id: (targetRole === 'admin' ? 'admin-' : targetRole === 'seller' ? 'seller-' : 'cust-') + Date.now(),
       name: cleanName,
       email: cleanEmail,
       role: targetRole,
@@ -1157,6 +1595,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       authProvider: 'email',
       createdAt: new Date().toISOString(),
       phone: '+234 800 123 4567',
+      storeName: targetRole === 'seller' ? `${cleanName} Official Store` : undefined,
+      isVerifiedSeller: targetRole === 'seller' ? true : undefined,
+      commissionRate: targetRole === 'seller' ? 0.08 : undefined,
     };
 
     setAllUsers((prev) => [newUser, ...prev]);
@@ -1165,23 +1606,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoggedIn(true);
     addToast(
       'success',
-      targetRole === 'admin' ? '🛡️ Admin Account Registered' : 'Registration Complete',
+      targetRole === 'admin' ? '🛡️ Admin Account Registered' : targetRole === 'seller' ? '🏪 Merchant Store Registered' : 'Registration Complete',
       `Welcome to CartNova, ${cleanName}! Acting as ${targetRole.toUpperCase()}`
     );
     closeAuthModal();
     return { success: true, message: 'Account created successfully' };
   };
 
-  const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: 'customer' | 'admin'): Promise<{ success: boolean; message: string }> => {
+  const loginWithGoogle = async (googleAccount?: { name?: string; email?: string; avatar?: string }, preferredRole?: UserRole): Promise<{ success: boolean; message: string }> => {
     const targetEmail = (googleAccount?.email || '').trim().toLowerCase();
     if (!targetEmail || !targetEmail.includes('@')) {
       addToast('error', 'Sign-In Failed', 'Please provide a valid Gmail or email address');
       return { success: false, message: 'Invalid email address' };
     }
 
-    const targetRole = preferredRole || (targetEmail.includes('admin') ? 'admin' : 'customer');
+    const targetRole = preferredRole || (targetEmail.includes('admin') ? 'admin' : targetEmail.includes('seller') ? 'seller' : 'customer');
     const autoName = targetEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-    const targetName = googleAccount?.name?.trim() || autoName || (targetRole === 'admin' ? 'Google Admin' : 'Google Customer');
+    const targetName = googleAccount?.name?.trim() || autoName || (targetRole === 'admin' ? 'Google Admin' : targetRole === 'seller' ? 'Google Merchant' : 'Google Customer');
     const targetAvatar = googleAccount?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(targetName)}`;
 
     const existingUser = allUsers.find((u) => u.email.toLowerCase() === targetEmail);
@@ -1192,6 +1633,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         avatar: existingUser.avatar || targetAvatar,
         role: targetRole,
         authProvider: 'google',
+        storeName: targetRole === 'seller' ? (existingUser.storeName || `${targetName} Official Store`) : existingUser.storeName,
       };
       setAllUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
       setCurrentUser(updatedUser);
@@ -1199,7 +1641,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoggedIn(true);
       addToast(
         'success',
-        targetRole === 'admin' ? '🛡️ Google Admin Connected' : 'Google Sign-In Successful',
+        targetRole === 'admin' ? '🛡️ Google Admin Connected' : targetRole === 'seller' ? '🏪 Merchant Google Connected' : 'Google Sign-In Successful',
         `Welcome back, ${updatedUser.name} (${targetRole.toUpperCase()})`
       );
       closeAuthModal();
@@ -1207,7 +1649,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const newGoogleUser: UserProfile = {
-      id: (targetRole === 'admin' ? 'admin-google-' : 'google-user-') + Date.now(),
+      id: (targetRole === 'admin' ? 'admin-google-' : targetRole === 'seller' ? 'seller-google-' : 'google-user-') + Date.now(),
       name: targetName,
       email: targetEmail,
       role: targetRole,
@@ -1215,6 +1657,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       authProvider: 'google',
       createdAt: new Date().toISOString(),
       phone: '+234 800 000 0000',
+      storeName: targetRole === 'seller' ? `${targetName} Official Store` : undefined,
+      isVerifiedSeller: targetRole === 'seller' ? true : undefined,
+      commissionRate: targetRole === 'seller' ? 0.08 : undefined,
       address: {
         street: 'Main Street',
         city: 'Lagos',
@@ -1230,7 +1675,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoggedIn(true);
     addToast(
       'success',
-      targetRole === 'admin' ? '🛡️ Google Admin Provisioned' : 'Google Sign-In Successful',
+      targetRole === 'admin' ? '🛡️ Google Admin Provisioned' : targetRole === 'seller' ? '🏪 Google Merchant Onboarded' : 'Google Sign-In Successful',
       `Connected as ${targetName} (${targetRole.toUpperCase()})`
     );
     closeAuthModal();
@@ -1283,6 +1728,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Product CRUD
   const addProduct = (newProdData: Omit<Product, 'id' | 'createdAt'>) => {
+    if (activeRole !== 'admin' && activeRole !== 'seller') {
+      addToast('error', 'Access Denied', 'Admin or Seller privileges are required to create products.');
+      return;
+    }
     const newProduct: Product = {
       ...newProdData,
       id: 'prod-' + Date.now(),
@@ -1293,6 +1742,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
+    if (activeRole !== 'admin' && activeRole !== 'seller') {
+      addToast('error', 'Access Denied', 'Admin or Seller privileges are required to modify products.');
+      return;
+    }
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
     );
@@ -1300,12 +1753,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteProduct = (id: string) => {
+    if (activeRole !== 'admin' && activeRole !== 'seller') {
+      addToast('error', 'Access Denied', 'Admin or Seller privileges are required to delete products.');
+      return;
+    }
     const target = products.find((p) => p.id === id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
     addToast('info', 'Product Removed', `"${target?.title || 'Item'}" was deleted`);
   };
 
   const toggleFeaturedProduct = (id: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to feature products.');
+      return;
+    }
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, isFeatured: !p.isFeatured } : p))
     );
@@ -1510,6 +1971,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       image: firstItem?.productImage,
     };
     setNotifications((prev) => [newNotif, ...prev]);
+
+    // Dispatch Simulated Payment Alert to configured Admin Gmail
+    recordSimulatedPayment({
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      customerName: newOrder.customerName,
+      customerEmail: newOrder.customerEmail,
+      amount: newOrder.totalAmount,
+      currency: currentCurrency.code,
+      paymentMethod: newOrder.paymentMethod,
+      items: newOrder.items.map((it) => ({
+        id: it.productId,
+        title: (it as any).title || (it as any).productTitle || 'CartNova Store Item',
+        price: (it as any).price || (it as any).unitPrice || 0,
+        quantity: it.quantity,
+        image: (it as any).productImage || (it as any).image,
+      })),
+      initialStatus: 'TEST_RECEIVED',
+    });
 
     return newOrder;
   };
@@ -2046,6 +2526,152 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, rmaNumber, ticket: newTicket };
   };
 
+  const approveRefundDispute = (
+    ticketId: string,
+    orderId: string,
+    refundAmount?: number,
+    resolutionNote?: string
+  ) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to authorize refunds.');
+      return;
+    }
+    const targetOrder = orders.find((o) => o.id === orderId);
+    const targetTicket = supportTickets.find((t) => t.id === ticketId);
+    const amountToCredit = refundAmount || targetOrder?.totalAmount || 0;
+
+    if (amountToCredit > 0) {
+      creditWallet(amountToCredit, `Refund for Order #${targetOrder?.orderNumber || orderId}`);
+    }
+
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: 'refunded', status: 'cancelled' } : o))
+    );
+
+    const resolutionMsg: SupportMessage = {
+      id: 'msg-approved-' + Date.now(),
+      sender: 'agent',
+      senderName: 'CartNova Finance & Refunds Desk',
+      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      text: `Your refund of ₦${amountToCredit.toLocaleString()} has been approved and credited to your CartNova Wallet immediately! ${resolutionNote || ''}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    setSupportTickets((prev) =>
+      prev.map((t) =>
+        t.id === ticketId
+          ? {
+              ...t,
+              status: 'resolved',
+              updatedAt: new Date().toISOString(),
+              resolutionNote: resolutionNote || 'Refund approved and wallet credited',
+              messages: [...t.messages, resolutionMsg],
+            }
+          : t
+      )
+    );
+
+    addNotification({
+      userId: targetTicket?.customerId || currentUser.id,
+      title: 'Refund Approved & Deposited',
+      message: `₦${amountToCredit.toLocaleString()} has been credited to your CartNova Wallet for Order #${targetOrder?.orderNumber || orderId}.`,
+      type: 'order',
+      priority: 'high',
+    });
+
+    addToast('success', 'Refund Approved', `₦${amountToCredit.toLocaleString()} credited to customer wallet.`);
+  };
+
+  const rejectRefundDispute = (ticketId: string, reasonNote?: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to moderate dispute tickets.');
+      return;
+    }
+    const targetTicket = supportTickets.find((t) => t.id === ticketId);
+    const rejectionMsg: SupportMessage = {
+      id: 'msg-reject-' + Date.now(),
+      sender: 'agent',
+      senderName: 'CartNova Compliance Desk',
+      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      text: `Return/Refund request has been reviewed and declined. Reason: ${reasonNote || 'Item does not meet return policy criteria.'}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    setSupportTickets((prev) =>
+      prev.map((t) =>
+        t.id === ticketId
+          ? {
+              ...t,
+              status: 'closed',
+              updatedAt: new Date().toISOString(),
+              resolutionNote: reasonNote || 'Dispute rejected by administration',
+              messages: [...t.messages, rejectionMsg],
+            }
+          : t
+      )
+    );
+
+    addNotification({
+      userId: targetTicket?.customerId || currentUser.id,
+      title: 'Refund Request Update',
+      message: `Your return request on Ticket #${targetTicket?.ticketNumber || ticketId} was declined. Reason: ${reasonNote || 'Policy criteria not met.'}`,
+      type: 'order',
+      priority: 'normal',
+    });
+
+    addToast('info', 'Dispute Rejected', 'Ticket status updated to Closed.');
+  };
+
+  const broadcastNotification = (
+    title: string,
+    message: string,
+    type: NotificationType = 'system',
+    priority: 'low' | 'normal' | 'high' = 'normal'
+  ) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to broadcast notifications.');
+      return;
+    }
+    const newNotifId = 'notif-bc-' + Date.now();
+    const created: CustomerNotification = {
+      id: newNotifId,
+      userId: 'all',
+      title,
+      message,
+      type,
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority,
+    };
+
+    setNotifications((prev) => [created, ...prev]);
+    try {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([created, ...notifications]));
+    } catch {}
+
+    addToast('success', 'Broadcast Sent', `Notification "${title}" delivered to all users.`);
+  };
+
+  const updateUserRole = (userId: string, newRole: UserRole) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to modify user roles.');
+      return;
+    }
+    setAllUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === userId) {
+          return { ...u, role: newRole };
+        }
+        return u;
+      })
+    );
+    if (currentUser.id === userId) {
+      setCurrentUser((prev) => ({ ...prev, role: newRole }));
+      setActiveRole(newRole);
+    }
+    addToast('success', 'Role Updated', `User role modified to ${newRole.toUpperCase()}`);
+  };
+
   // Currency
   const currentCurrency = CURRENCIES[currencyCode] || CURRENCIES.NGN;
   const setCurrency = (code: CurrencyCode) => setCurrencyCode(code);
@@ -2064,7 +2690,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Filtered products list with smart relevance ranking and full filter/sort matrix
   const filteredProducts = useMemo(() => {
     const rawQuery = filters.searchQuery.trim().toLowerCase();
-    const tokens = rawQuery ? rawQuery.split(/\s+/).filter(Boolean) : [];
+    // Normalize rawQuery: replace & with and, filter out stop words
+    const rawQueryClean = rawQuery.replace(/&/g, 'and');
+    const tokens = rawQuery
+      ? rawQueryClean
+          .split(/[\s,/-]+/)
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t && t !== 'and' && t !== 'the' && t !== 'for')
+      : [];
+
+    const normalizeCat = (s: string) =>
+      (s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
 
     const scored = products
       .map((p) => {
@@ -2082,31 +2718,94 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const seller = (p.sellerName || '').toLowerCase();
           const searchable = `${title} ${brand} ${category} ${tags.join(' ')} ${specs} ${seller} ${desc}`;
 
-          // All tokens must match somewhere in searchable text
-          const matchesAllTokens = tokens.every((tok) => searchable.includes(tok));
+          // All tokens must match somewhere in searchable text or category name
+          const matchesAllTokens = tokens.every((tok) => {
+            const cleanTok = tok.endsWith('s') && tok.length > 4 ? tok.slice(0, -1) : tok;
+            return searchable.includes(tok) || searchable.includes(cleanTok);
+          });
           if (!matchesAllTokens) return null;
 
           // Exact full phrase bonus
           if (title.includes(rawQuery)) relevanceScore += 50;
           if (title.startsWith(rawQuery)) relevanceScore += 30;
           if (brand.includes(rawQuery)) relevanceScore += 25;
-          if (category.includes(rawQuery)) relevanceScore += 20;
+          if (category.includes(rawQuery) || normalizeCat(category).includes(normalizeCat(rawQuery))) relevanceScore += 35;
 
           // Per-token weights
           tokens.forEach((tok) => {
             if (title.includes(tok)) relevanceScore += 15;
             if (brand.includes(tok)) relevanceScore += 10;
             if (tags.some((t) => t.includes(tok))) relevanceScore += 8;
-            if (category.includes(tok)) relevanceScore += 6;
+            if (category.includes(tok)) relevanceScore += 12;
             if (specs.includes(tok)) relevanceScore += 4;
             if (desc.includes(tok)) relevanceScore += 2;
           });
         }
 
-        // Category filter
+        // Category filter (support category name, category slug, and normalized variations case-insensitively)
         if (filters.category !== 'all') {
-          const matchCat = p.category.toLowerCase() === filters.category.toLowerCase();
+          const catFilter = filters.category.toLowerCase().trim();
+          const pCat = (p.category || '').toLowerCase().trim();
+          const catObj = categories.find(
+            (c) =>
+              c.slug.toLowerCase() === catFilter ||
+              c.name.toLowerCase() === catFilter ||
+              normalizeCat(c.name) === normalizeCat(catFilter) ||
+              normalizeCat(c.slug) === normalizeCat(catFilter)
+          );
+          const targetName = catObj ? catObj.name.toLowerCase() : catFilter;
+          const targetSlug = catObj ? catObj.slug.toLowerCase() : catFilter;
+
+          const catFilterNorm = normalizeCat(catFilter);
+          const pCatNorm = normalizeCat(pCat);
+          const targetNameNorm = normalizeCat(targetName);
+          const targetSlugNorm = normalizeCat(targetSlug);
+
+          const matchCat =
+            pCat === catFilter ||
+            pCat === targetName ||
+            pCat === targetSlug ||
+            pCatNorm === catFilterNorm ||
+            pCatNorm === targetNameNorm ||
+            pCatNorm === targetSlugNorm ||
+            // Phones & Tablets alias matching
+            ((catFilterNorm.includes('phone') || catFilterNorm.includes('tablet') || catFilterNorm.includes('mobile')) &&
+              (pCatNorm.includes('phone') || pCatNorm.includes('tablet') || pCatNorm.includes('mobile'))) ||
+            (catFilter === 'electronics' && (pCat.includes('electron') || pCat.includes('appliance') || pCat.includes('tv'))) ||
+            ((catFilter === 'games & toys' || catFilter === 'games-toys' || catFilter === 'toys-games' || catFilterNorm.includes('gamestoy') || catFilterNorm.includes('toysgame')) &&
+              (pCat.includes('game') || pCat.includes('toy'))) ||
+            (catFilter === 'automotive' && pCat.includes('auto')) ||
+            (catFilter === 'gadgets' && pCat.includes('gadget')) ||
+            (catFilter === 'books' && pCat.includes('book')) ||
+            (catFilter === 'accessories' && pCat.includes('accessor')) ||
+            (catFilter === 'groceries' && (pCat.includes('grocer') || pCat.includes('food'))) ||
+            ((catFilter === 'sports & fitness' || catFilter === 'sports-fitness' || catFilterNorm.includes('sportsfitness')) &&
+              (pCat.includes('sport') || pCat.includes('fitness')));
+
           if (!matchCat) return null;
+        }
+
+        // Subcategory filter
+        if (filters.subcategory && filters.subcategory.trim() !== '') {
+          const subFilter = filters.subcategory.toLowerCase().trim();
+          const cleanSub = subFilter.endsWith('s') ? subFilter.slice(0, -1) : subFilter;
+          const subWords = subFilter.split(/[\s,&/-]+/).filter((w) => w.length > 2);
+          const pTags = (p.tags || []).map((t) => t.toLowerCase());
+          const pTitle = (p.title || '').toLowerCase();
+          const pShort = (p.shortDescription || '').toLowerCase();
+          const pDesc = (p.description || '').toLowerCase();
+          const pSpecs = Object.entries(p.specs || {}).map(([k, v]) => `${k} ${v}`.toLowerCase()).join(' ');
+
+          const matchesSub =
+            pTags.some((t) => t.includes(subFilter) || t.includes(cleanSub) || (cleanSub.length > 3 && t.includes(cleanSub))) ||
+            pTitle.includes(subFilter) ||
+            pTitle.includes(cleanSub) ||
+            pShort.includes(subFilter) ||
+            pShort.includes(cleanSub) ||
+            pDesc.includes(subFilter) ||
+            pSpecs.includes(subFilter) ||
+            (subWords.length > 0 && subWords.every((w) => pTitle.includes(w) || pTags.some((t) => t.includes(w)) || pShort.includes(w) || pDesc.includes(w) || pSpecs.includes(w)));
+          if (!matchesSub) return null;
         }
 
         // Brands filter (multi-select)
@@ -2409,7 +3108,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // 1-Click Buy Handler
-  const oneClickBuy = (product: Product, quantity = 1) => {
+  const oneClickBuy = (product: Product, quantity = 1, selectedVariants?: Record<string, string>) => {
     const unitPrice = isNovaPrime && product.discountPercentage ? Math.floor(product.price * 0.9) : product.price;
     const subtotal = unitPrice * quantity;
     const shippingFee = 0;
@@ -2429,6 +3128,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           unitPrice,
           sellerId: product.sellerId,
           sellerName: product.sellerName,
+          selectedVariant: selectedVariants || {},
         },
       ],
       subtotal,
@@ -2478,6 +3178,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setOneClickBuySuccessOrder(newOrder);
     addToast('success', '⚡ 1-Click Buy Success!', `Order #${newOrder.orderNumber} placed for ${product.title}`);
+
+    // Dispatch Simulated Payment Alert for 1-Click Buy
+    recordSimulatedPayment({
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      customerName: newOrder.customerName,
+      customerEmail: newOrder.customerEmail,
+      amount: newOrder.totalAmount,
+      currency: currentCurrency.code,
+      paymentMethod: 'ONE_CLICK_CARD',
+      items: [
+        {
+          id: product.id,
+          title: product.title,
+          price: unitPrice,
+          quantity,
+          image: product.images[0] || '',
+        },
+      ],
+      initialStatus: 'TEST_RECEIVED',
+    });
   };
 
   // Product Q&A Handlers
@@ -2746,11 +3467,302 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // Category Management Handlers
+  const addCategory = (categoryData: Category) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to create categories.');
+      return;
+    }
+    setCategories((prev) => [...prev, categoryData]);
+    addToast('success', 'Category Created', `Category "${categoryData.name}" added successfully.`);
+  };
+
+  const updateCategory = (id: string, updates: Partial<Category>) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to edit categories.');
+      return;
+    }
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+    addToast('success', 'Category Updated', 'Category details saved successfully.');
+  };
+
+  const deleteCategory = (id: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to delete categories.');
+      return;
+    }
+    setCategories((prev) => prev.filter((c) => c.id !== id));
+    addToast('info', 'Category Removed', 'Category was deleted.');
+  };
+
+  // Coupon Management Handlers
+  const addCoupon = (coupon: Coupon) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to publish coupons.');
+      return;
+    }
+    setCoupons((prev) => [coupon, ...prev]);
+    addToast('success', 'Coupon Created', `Promo code "${coupon.code}" is now live.`);
+  };
+
+  const toggleCouponStatus = (code: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to toggle coupon status.');
+      return;
+    }
+    setCoupons((prev) =>
+      prev.map((c) => (c.code === code ? { ...c, isActive: c.isActive === false ? true : false } : c))
+    );
+    addToast('info', 'Coupon Updated', `Status of promo ${code} updated.`);
+  };
+
+  const deleteCoupon = (code: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to delete coupons.');
+      return;
+    }
+    setCoupons((prev) => prev.filter((c) => c.code !== code));
+    addToast('info', 'Coupon Deleted', `Promo code "${code}" was deleted.`);
+  };
+
+  // User Management Handlers
+  const toggleUserStatus = (userId: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to suspend or activate users.');
+      return;
+    }
+    setAllUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === userId) {
+          const newStatus = u.status === 'suspended' ? 'active' : 'suspended';
+          return { ...u, status: newStatus };
+        }
+        return u;
+      })
+    );
+    addToast('info', 'User Status Updated', 'Account access status has been modified.');
+  };
+
+  const addUser = (userData: Partial<UserProfile>) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to onboard users.');
+      return;
+    }
+    const newUser: UserProfile = {
+      id: `user-${Date.now()}`,
+      name: userData.name || 'New Member',
+      email: userData.email || `user${Date.now()}@cartnova.com`,
+      role: userData.role || 'customer',
+      avatar: userData.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userData.name || 'User')}`,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      storeName: userData.storeName,
+      storeBio: userData.storeBio,
+      phone: userData.phone || '+234 800 123 4567',
+      isVerifiedSeller: userData.role === 'seller',
+      commissionRate: 10,
+      ...userData,
+    };
+    setAllUsers((prev) => [newUser, ...prev]);
+    addToast('success', 'User Created', `${newUser.name} registered as ${newUser.role}.`);
+  };
+
+  // Review Moderation Handlers
+  const deleteReview = (id: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to remove reviews.');
+      return;
+    }
+    setReviews((prev) => prev.filter((r) => r.id !== id));
+    addToast('info', 'Review Deleted', 'Review was removed from the store.');
+  };
+
+  const toggleReviewApproval = (id: string) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to moderate reviews.');
+      return;
+    }
+    setReviews((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, isApproved: r.isApproved === false ? true : false } : r))
+    );
+    addToast('success', 'Review Moderated', 'Review visibility updated.');
+  };
+
+  const replyToReviewAsAdmin = (reviewId: string, replyMessage: string, moderatorName = 'CartNova Official Moderator') => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to post official moderator replies.');
+      return;
+    }
+    setReviews((prev) =>
+      prev.map((r) => {
+        if (r.id === reviewId) {
+          return {
+            ...r,
+            sellerReply: {
+              message: replyMessage,
+              date: new Date().toISOString().split('T')[0],
+              sellerName: moderatorName,
+            },
+          };
+        }
+        return r;
+      })
+    );
+    addToast('success', 'Moderator Response Posted', 'Official reply posted to the product review.');
+  };
+
+  // Seller Management & Storefront Handlers
+  const verifySeller = (sellerId: string, isVerified: boolean) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to verify sellers.');
+      return;
+    }
+    setAllUsers((prev) =>
+      prev.map((u) => (u.id === sellerId ? { ...u, isVerifiedSeller: isVerified } : u))
+    );
+    addToast('success', 'Merchant Verified', `Merchant verification status updated.`);
+  };
+
+  const updateSellerCommission = (sellerId: string, rate: number) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to adjust seller commission.');
+      return;
+    }
+    setAllUsers((prev) =>
+      prev.map((u) => (u.id === sellerId ? { ...u, commissionRate: rate } : u))
+    );
+    addToast('success', 'Commission Updated', `Seller take-rate set to ${rate}%.`);
+  };
+
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const viewSellerStore = (sellerId: string) => {
+    setSelectedSellerId(sellerId);
+    setActiveCustomerTab('seller-store');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Order Tracking Update Handler for Admin / Seller
+  const updateOrderTracking = (orderId: string, carrier: string, trackingNumber: string) => {
+    if (activeRole !== 'admin' && activeRole !== 'seller') {
+      addToast('error', 'Access Denied', 'Admin or Seller privileges are required to update tracking.');
+      return;
+    }
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          const updatedTimeline = [
+            ...o.timeline,
+            {
+              status: 'shipped' as OrderStatus,
+              timestamp: new Date().toISOString(),
+              title: `Dispatched with ${carrier}`,
+              description: `Tracking code: ${trackingNumber}. Live dispatch updates enabled.`,
+            },
+          ];
+          return {
+            ...o,
+            carrier,
+            trackingNumber,
+            status: 'shipped' as OrderStatus,
+            timeline: updatedTimeline,
+          };
+        }
+        return o;
+      })
+    );
+    addToast('success', 'Tracking Assigned', `Carrier ${carrier} tracking ${trackingNumber} added.`);
+  };
+
+  // Referral and Rewards System
+  const [referralData, setReferralData] = useState<ReferralStats>(() => {
+    try {
+      const saved = localStorage.getItem('cartnova_referrals_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      referralCode: 'CARTNOVA-VIP-ALEX99',
+      totalInvited: 7,
+      successfulPurchases: 5,
+      totalEarnedBonus: 25000,
+      pendingRewardBonus: 10000,
+      tier: 'Gold',
+      rewardPoints: 3450,
+      dailyStreak: 4,
+      lastCheckInDate: null,
+    };
+  });
+
+  const claimDailyStreakReward = () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (referralData.lastCheckInDate === today) {
+      addToast('info', 'Already Claimed Today', 'Come back tomorrow for your next daily streak bonus!');
+      return { points: 0, bonusMessage: 'Already claimed today', newStreak: referralData.dailyStreak };
+    }
+    const newStreak = (referralData.dailyStreak % 7) + 1;
+    const pointsEarned = newStreak * 250;
+    if (newStreak === 7) {
+      creditWallet(5000, 'Day 7 Jackpot Streak Bonus');
+    }
+    const updated: ReferralStats = {
+      ...referralData,
+      dailyStreak: newStreak,
+      lastCheckInDate: today,
+      rewardPoints: referralData.rewardPoints + pointsEarned,
+    };
+    setReferralData(updated);
+    try {
+      localStorage.setItem('cartnova_referrals_v2', JSON.stringify(updated));
+    } catch {}
+    const bonusMsg =
+      newStreak === 7
+        ? '🎉 Day 7 Jackpot! +1,750 Pts & ₦5,000 Wallet Cash Deposit!'
+        : `+${pointsEarned} Points added for Day ${newStreak} check-in!`;
+    addToast('success', 'Daily Streak Claimed!', bonusMsg);
+    return { points: pointsEarned, bonusMessage: bonusMsg, newStreak };
+  };
+
+  const redeemRewardPoints = (pointsCost: number, rewardType: 'wallet' | 'coupon' | 'shipping') => {
+    if (referralData.rewardPoints < pointsCost) {
+      addToast('error', 'Insufficient Points', `You need ${pointsCost.toLocaleString()} points for this reward.`);
+      return { success: false, message: 'Insufficient points' };
+    }
+    let successMsg = '';
+    if (rewardType === 'wallet') {
+      const creditAmt = pointsCost === 1000 ? 5000 : pointsCost === 2000 ? 12000 : 30000;
+      creditWallet(creditAmt, 'Points Redemption Reward');
+      successMsg = `Redeemed ${pointsCost} pts for ₦${creditAmt.toLocaleString()} wallet funds!`;
+    } else if (rewardType === 'coupon') {
+      const newCode = `VIP${Math.floor(1000 + Math.random() * 9000)}`;
+      addCoupon({
+        code: newCode,
+        discountPercent: 40,
+        description: 'VIP 40% OFF Exclusive Rewards Voucher',
+        expiresAt: '2026-12-31',
+        isActive: true,
+        minOrderAmount: 20000,
+      });
+      successMsg = `Redeemed voucher code ${newCode} (40% OFF)!`;
+    } else {
+      setIsNovaPrimeState(true);
+      successMsg = `Activated 1-Month Free Express Shipping Pass!`;
+    }
+    const updated: ReferralStats = {
+      ...referralData,
+      rewardPoints: referralData.rewardPoints - pointsCost,
+    };
+    setReferralData(updated);
+    try {
+      localStorage.setItem('cartnova_referrals_v2', JSON.stringify(updated));
+    } catch {}
+    addToast('success', 'Reward Claimed!', successMsg);
+    return { success: true, message: successMsg };
+  };
+
   const resetStoreData = () => {
     localStorage.clear();
     setProducts(INITIAL_PRODUCTS);
     setCart([]);
-    setWishlist(['prod-1', 'prod-3']);
+    setWishlist(['prod-gadg-iphone17promax', 'prod-3']);
     setOrders(INITIAL_ORDERS);
     setReviews(INITIAL_REVIEWS);
     setAllUsers(INITIAL_USERS);
@@ -2790,12 +3802,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithGoogle,
         logout,
         updateUserProfile,
+        toggleUserStatus,
+        updateUserRole,
+        addUser,
         products,
         categories,
         addProduct,
         updateProduct,
         deleteProduct,
         toggleFeaturedProduct,
+        addCategory,
+        updateCategory,
+        deleteCategory,
         cart,
         addToCart,
         removeFromCart,
@@ -2824,12 +3842,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         orders,
         createOrder,
         updateOrderStatus,
+        updateOrderTracking,
         cancelOrder,
         reviews,
         addReview,
         voteHelpfulReview,
         replyToReview,
         addSellerReplyToReview: replyToReview,
+        deleteReview,
+        toggleReviewApproval,
+        replyToReviewAsAdmin,
+        verifySeller,
+        updateSellerCommission,
+        selectedSellerId,
+        setSelectedSellerId,
+        viewSellerStore,
         filters,
         setFilters,
         resetFilters,
@@ -2848,6 +3875,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         appliedCoupon,
         applyCoupon,
         removeCoupon,
+        addCoupon,
+        toggleCouponStatus,
+        deleteCoupon,
+        referralData,
+        claimDailyStreakReward,
+        redeemRewardPoints,
         quickViewProduct,
         setQuickViewProduct,
         selectedProductId,
@@ -2892,6 +3925,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsNovaPrimeModalOpen,
         // 1-Click Buy
         oneClickBuy,
+        openOneClickBuyModal: oneClickBuy,
         oneClickBuySuccessOrder,
         setOneClickBuySuccessOrder,
         // Tracking
@@ -2935,6 +3969,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteNotification,
         clearAllNotifications,
         addNotification,
+        broadcastNotification,
         isNotificationPopoverOpen,
         setIsNotificationPopoverOpen,
         handleNotificationAction,
@@ -2954,6 +3989,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         prefillSupportForOrder,
         voteFaq,
         submitOrderDisputeOrRefund,
+        approveRefundDispute,
+        rejectRefundDispute,
         currentCurrency,
         setCurrency,
         formatPrice,
@@ -2963,6 +4000,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toasts,
         addToast,
         removeToast,
+        // Simulated Payment Alert & Sandbox Ledger (DEMO MODE)
+        simulatedTransactions,
+        simulatedPaymentConfig,
+        selectedSimulatedTxn,
+        setSelectedSimulatedTxn,
+        isSimulatedAlertModalOpen,
+        setIsSimulatedAlertModalOpen,
+        recordSimulatedPayment,
+        updateSimulatedTxnStatus,
+        resendSimulatedTxnAlert,
+        updateSimulatedConfig,
+        triggerManualTestEmailAlert,
+        fetchSimulatedTransactions,
         resetStoreData,
       }}
     >

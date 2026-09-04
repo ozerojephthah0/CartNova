@@ -13,6 +13,12 @@ export interface UserProfile {
   storeBio?: string;
   rating?: number;
   phone?: string;
+  isVerifiedSeller?: boolean;
+  commissionRate?: number;
+  totalSalesAmount?: number;
+  followerCount?: number;
+  storeBanner?: string;
+  storePolicy?: string;
   address?: {
     street: string;
     city: string;
@@ -39,6 +45,8 @@ export interface Product {
   originalPrice?: number;
   discountPercentage?: number;
   category: string;
+  subcategoryId?: string;
+  subcategory?: string;
   brand: string;
   images: string[];
   rating: number;
@@ -54,6 +62,9 @@ export interface Product {
   tags: string[];
   specs: Record<string, string>;
   variants?: ProductVariant[];
+  approvalStatus?: 'approved' | 'pending' | 'rejected';
+  rejectionReason?: string;
+  seasonalEventIds?: string[];
   createdAt: string;
 }
 
@@ -123,6 +134,7 @@ export interface Order {
 export interface Review {
   id: string;
   productId: string;
+  productTitle?: string;
   userId: string;
   userName: string;
   userAvatar: string;
@@ -132,6 +144,7 @@ export interface Review {
   date: string;
   verifiedPurchase: boolean;
   helpfulCount: number;
+  isApproved?: boolean;
   images?: string[];
   ratingsBreakdown?: {
     quality?: number;
@@ -145,6 +158,31 @@ export interface Review {
   };
 }
 
+export type ReferralTier = 'Bronze' | 'Silver' | 'Gold' | 'Diamond VIP';
+
+export interface ReferralStats {
+  referralCode: string;
+  totalInvited: number;
+  successfulPurchases: number;
+  totalEarnedBonus: number;
+  pendingRewardBonus: number;
+  tier: ReferralTier;
+  rewardPoints: number;
+  dailyStreak: number;
+  lastCheckInDate: string | null;
+}
+
+export interface Subcategory {
+  id: string;
+  name: string;
+  slug: string;
+  parentCategoryId: string;
+  itemCount?: number;
+  image?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -154,6 +192,42 @@ export interface Category {
   bannerImage: string;
   itemCount: number;
   accentColor: string;
+  subcategories?: Subcategory[];
+  isActive?: boolean;
+  isFeatured?: boolean;
+  isHidden?: boolean;
+  order?: number;
+  showInMainMenu?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CategorySuggestion {
+  id: string;
+  merchantId: string;
+  merchantName: string;
+  categoryName: string;
+  parentCategoryName?: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNotes?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface MainMenuItem {
+  id: string;
+  label: string;
+  iconName: string;
+  actionType: 'shop' | 'categories' | 'seasonal-events' | 'flash-deals' | 'trending' | 'new-arrivals' | 'best-sellers' | 'recommended' | 'brands' | 'merchants' | 'wishlist' | 'cart' | 'orders' | 'profile' | 'support' | 'custom';
+  targetTab?: string;
+  targetCategory?: string;
+  badge?: string;
+  badgeColor?: string;
+  order: number;
+  isEnabled: boolean;
+  rolesAllowed?: UserRole[];
+  isCustom?: boolean;
 }
 
 export interface Coupon {
@@ -171,6 +245,7 @@ export interface Coupon {
 export interface FilterState {
   searchQuery: string;
   category: string;
+  subcategory?: string;
   brands: string[];
   minPrice: number;
   maxPrice: number;
@@ -181,6 +256,11 @@ export interface FilterState {
   freeShippingOnly: boolean;
   featuredOnly: boolean;
   sellerId: string;
+  storage?: string[];
+  ram?: string[];
+  sizes?: string[];
+  colors?: string[];
+  seasonalEventId?: string;
   sortBy:
     | 'featured'
     | 'relevance'
@@ -201,7 +281,8 @@ export type NotificationType =
   | 'stock'
   | 'system'
   | 'security'
-  | 'review';
+  | 'review'
+  | 'promotion';
 
 export interface CustomerNotification {
   id: string;
@@ -407,7 +488,7 @@ export interface SeasonalEvent {
   slug: string;
   categoryType: EventSeason;
   status: EventStatus;
-  discountPercent: number; // Always 20 as requested
+  discountPercent: number; // Flat 20% discount as core feature
   couponCode: string;
   dateRange: string;
   month: string;
@@ -424,9 +505,17 @@ export interface SeasonalEvent {
     border: string;
   };
   targetCountdownDate: string;
+  startDate?: string;
+  endDate?: string;
   featuredCategory: string;
   curatedProductIds: string[];
+  participatingCategoryIds?: string[];
+  participatingMerchantIds?: string[];
   giftGuideTips: string[];
+  isActive?: boolean;
+  isVisible?: boolean;
+  isFeatured?: boolean;
+  isCustom?: boolean;
 }
 
 export type SpinPrizeCategory = 'money' | 'product' | 'food' | 'coupon';
@@ -478,5 +567,68 @@ export interface ClaimedSpinReward {
   };
   claimedAt: string;
   isRedeemed: boolean;
+}
+
+export type SimulatedPaymentStatus =
+  | 'TEST_PENDING'
+  | 'TEST_RECEIVED'
+  | 'TEST_CONFIRMED'
+  | 'TEST_COMPLETED'
+  | 'TEST_FAILED'
+  | 'TEST_EXPIRED';
+
+export interface SimulatedTransactionItem {
+  id: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image?: string;
+}
+
+export interface SimulatedEmailAlert {
+  recipient: string;
+  sent: boolean;
+  sentAt?: string;
+  subject: string;
+  status: 'SENT' | 'SIMULATED_DISPATCH' | 'QUEUED' | 'FAILED';
+  messageId?: string;
+  error?: string;
+  htmlBody?: string;
+  rawText?: string;
+}
+
+export interface SimulatedTransactionTimelineEvent {
+  status: SimulatedPaymentStatus;
+  timestamp: string;
+  note: string;
+}
+
+export interface SimulatedTransaction {
+  id: string; // e.g. TEST-TXN-1725178200000-8472
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  status: SimulatedPaymentStatus;
+  items: SimulatedTransactionItem[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string; // 5-minute auto window expiration
+  isTestMode: boolean; // Always true
+  emailAlert: SimulatedEmailAlert;
+  timeline: SimulatedTransactionTimelineEvent[];
+}
+
+export interface SimulatedPaymentConfig {
+  adminEmail: string;
+  enableAutoAlerts: boolean;
+  enableFiveMinuteWindow: boolean;
+  autoExpireSeconds: number; // default 300 (5 minutes)
+  simulationSpeed: 'realtime' | 'accelerated';
+  demoBannerEnabled: boolean;
+  smtpConfigured: boolean;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { ProductCard } from './ProductCard';
 import { RecentlyViewedAndRecommended } from './RecentlyViewedAndRecommended';
@@ -36,6 +36,16 @@ import {
   DollarSign,
   Store,
   ArrowUpDown,
+  Tv,
+  Armchair,
+  Dumbbell,
+  Baby,
+  BookOpen,
+  Car,
+  Radio,
+  Apple,
+  Cpu,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 export const ProductGrid: React.FC = () => {
@@ -64,6 +74,21 @@ export const ProductGrid: React.FC = () => {
   const [maxPriceInput, setMaxPriceInput] = useState<string>(
     filters.maxPrice < 600000 ? filters.maxPrice.toString() : ''
   );
+
+  // Scalable pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(18);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(startIndex, startIndex + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
 
   // Section collapse states
   const [expandedSections, setExpandedSections] = useState({
@@ -102,11 +127,17 @@ export const ProductGrid: React.FC = () => {
     return allBrands.filter((b) => b.brand.toLowerCase().includes(q));
   }, [allBrands, brandSearchQuery]);
 
-  // Filtered categories based on filterSearchQuery
+  // Filtered categories based on filterSearchQuery (case-insensitive & robust matching)
   const displayedCategories = useMemo(() => {
     const q = filterSearchQuery.trim().toLowerCase();
     if (!q) return categories;
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
+    const qNorm = q.replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+    return categories.filter((c) => {
+      const name = c.name.toLowerCase();
+      const nameNorm = name.replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+      const slugNorm = c.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return name.includes(q) || nameNorm.includes(qNorm) || slugNorm.includes(qNorm);
+    });
   }, [categories, filterSearchQuery]);
 
   // Filtered sellers based on filterSearchQuery
@@ -144,6 +175,28 @@ export const ProductGrid: React.FC = () => {
         return <Gamepad2 className={className} />;
       case 'Watch':
         return <Watch className={className} />;
+      case 'Tv':
+        return <Tv className={className} />;
+      case 'Armchair':
+        return <Armchair className={className} />;
+      case 'Dumbbell':
+        return <Dumbbell className={className} />;
+      case 'Baby':
+        return <Baby className={className} />;
+      case 'BookOpen':
+        return <BookOpen className={className} />;
+      case 'Car':
+        return <Car className={className} />;
+      case 'Radio':
+        return <Radio className={className} />;
+      case 'Apple':
+        return <Apple className={className} />;
+      case 'Cpu':
+        return <Cpu className={className} />;
+      case 'UtensilsCrossed':
+        return <UtensilsCrossed className={className} />;
+      case 'Sparkles':
+        return <Sparkles className={className} />;
       default:
         return <Layers className={className} />;
     }
@@ -303,10 +356,18 @@ export const ProductGrid: React.FC = () => {
             </button>
 
             {displayedCategories.map((cat) => {
-              const isSelected = filters.category.toLowerCase() === cat.name.toLowerCase();
-              const count = products.filter(
-                (p) => p.category.toLowerCase() === cat.name.toLowerCase()
-              ).length;
+              const isSelected =
+                filters.category.toLowerCase() === cat.name.toLowerCase() ||
+                filters.category.toLowerCase() === cat.slug.toLowerCase();
+              const count = products.filter((p) => {
+                const pCat = (p.category || '').toLowerCase();
+                const cCat = cat.name.toLowerCase();
+                return (
+                  pCat === cCat ||
+                  (cCat.includes('phones & tablets') &&
+                    (pCat.includes('phones & tablets') || pCat.includes('mobile')))
+                );
+              }).length;
               return (
                 <button
                   key={cat.id}
@@ -1112,17 +1173,125 @@ export const ProductGrid: React.FC = () => {
         {/* Product Catalog Area */}
         <main className="lg:col-span-9">
           {filteredProducts.length > 0 ? (
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5'
-                  : 'space-y-4'
-              }
-            >
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} viewMode={viewMode} />
-              ))}
-            </div>
+            <>
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-2.5 sm:gap-5'
+                    : 'space-y-4'
+                }
+              >
+                {paginatedProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                ))}
+              </div>
+
+              {/* Scalable Catalog Pagination & Page Size Toolbar */}
+              {totalPages > 1 && (
+                <div
+                  id="catalog-pagination-toolbar"
+                  className="mt-8 pt-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
+                >
+                  <div className="flex items-center gap-2 text-slate-500 font-medium">
+                    <span>
+                      Showing{' '}
+                      <strong className="text-slate-800 font-bold">
+                        {(currentPage - 1) * pageSize + 1}
+                      </strong>{' '}
+                      to{' '}
+                      <strong className="text-slate-800 font-bold">
+                        {Math.min(currentPage * pageSize, filteredProducts.length)}
+                      </strong>{' '}
+                      of{' '}
+                      <strong className="text-slate-800 font-bold">
+                        {filteredProducts.length}
+                      </strong>{' '}
+                      products
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <span>Per page:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        <option value={12}>12</option>
+                        <option value={18}>18</option>
+                        <option value={24}>24</option>
+                        <option value={36}>36</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        window.scrollTo({ top: 400, behavior: 'smooth' });
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Previous
+                    </button>
+
+                    {Array.from({ length: totalPages }).map((_, idx) => {
+                      const pageNum = idx + 1;
+                      if (
+                        pageNum === 1 ||
+                        pageNum === totalPages ||
+                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => {
+                              setCurrentPage(pageNum);
+                              window.scrollTo({ top: 400, behavior: 'smooth' });
+                            }}
+                            className={`w-8 h-8 rounded-xl font-bold transition-all cursor-pointer ${
+                              currentPage === pageNum
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      } else if (
+                        pageNum === currentPage - 2 ||
+                        pageNum === currentPage + 2
+                      ) {
+                        return (
+                          <span key={pageNum} className="w-5 text-center text-slate-400">
+                            …
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        window.scrollTo({ top: 400, behavior: 'smooth' });
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             /* Smart Empty State with Search Suggestions & Category Shortcuts */
             <div
