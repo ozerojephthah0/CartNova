@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        getUserData().role == 'admin'
+      );
+    }
+
+    function isMerchant() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'seller' ||
+        getUserData().role == 'seller' ||
+        isAdmin()
+      );
+    }
+
+    // 1. User Profiles Collection
+    match /users/{userId} {
+      // Any authenticated user can read public profile data; full read if owner or admin
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      // Users can create their own profile; cannot elevate their own role to admin
+      allow create: if isAuthenticated() && isOwner(userId) && (
+        !('role' in request.resource.data) ||
+        request.resource.data.role == 'customer' ||
+        isAdmin()
+      );
+      // Users can update their own profile; role changes require admin privilege
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && request.resource.data.role == resource.data.role) ||
+        isAdmin()
+      );
+      // Only admins can delete user records
+      allow delete: if isAdmin();
+    }
+
+    // 2. Products Collection
+    match /products/{productId} {
+      // Public catalog read access for all shoppers
+      allow read: if true;
+      // Only verified merchants or admins can create products
+      allow create: if isMerchant() && (
+        request.resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+      // Merchants can only update or delete their own products
+      allow update, delete: if isMerchant() && (
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // 3. Orders Collection
+    match /orders/{orderId} {
+      // Customers can read their own orders; Merchants read orders containing their items; Admins read all
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerEmail == request.auth.token.email ||
+        isAdmin()
+      );
+      // Authenticated customers can create orders for themselves
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.customerEmail == request.auth.token.email
+      );
+      // Order status updates restricted to Merchants and Admins
+      allow update: if isAdmin() || (
+        isMerchant() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'trackingNumber', 'updatedAt'])
+      );
+      // Only admins can delete order audit records
+      allow delete: if isAdmin();
+    }
+
+    // 4. Coupons & Seasonal Campaigns
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 5. Categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 6. Reviews Collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // 7. Security Logs & Simulated Transactions
+    match /security_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /simulated_transactions/{txnId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

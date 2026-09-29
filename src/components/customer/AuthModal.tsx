@@ -184,8 +184,13 @@ export const AuthModal: React.FC = () => {
         }
       } catch (popupErr: any) {
         console.warn('Firebase Google Auth fallback triggered:', popupErr?.code || popupErr);
-        // Fallback for iframe preview: prompt direct Gmail
-        setErrorMsg(`Enter your Gmail address below to sign in as ${selectedRole === 'admin' ? 'an Admin' : 'a Customer'}.`);
+        if (popupErr?.code === 'auth/popup-closed-by-user' || popupErr?.code === 'auth/cancelled-popup-request') {
+          setErrorMsg('Google sign-in was cancelled by the user. Click Continue with Google to retry or enter your Gmail below.');
+        } else if (popupErr?.code === 'auth/popup-blocked') {
+          setErrorMsg('Popup window was blocked by your browser. Please allow popups or enter your Gmail directly below.');
+        } else {
+          setErrorMsg(`Unable to open Google popup in this browser environment. Enter your Gmail address below to sign in directly as ${selectedRole}.`);
+        }
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Please enter your Gmail address below to sign in.');

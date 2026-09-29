@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { User, Product, Coupon, Category, OrderStatus } from '../../types';
 import { AdminProductModal } from './AdminProductModal';
+import { AdminBulkPriceModal } from './AdminBulkPriceModal';
 import {
   ShieldCheck,
   TrendingUp,
@@ -41,6 +42,9 @@ import {
   Image as ImageIcon,
   Lock,
   Mail,
+  RotateCcw,
+  Sliders,
+  CheckSquare,
 } from 'lucide-react';
 import { AdminGuard } from './AdminGuard';
 import { AdminPaymentsRefundsTab } from './AdminPaymentsRefundsTab';
@@ -79,6 +83,10 @@ export const AdminDashboard: React.FC = () => {
     replyToReviewAsAdmin,
     verifySeller,
     updateSellerCommission,
+    bulkUpdateProductPrices,
+    undoLastPriceAdjustment,
+    canUndoPriceAdjustment,
+    priceAdjustmentHistory,
     formatPrice,
     addToast,
   } = useStore();
@@ -99,6 +107,12 @@ export const AdminDashboard: React.FC = () => {
     | 'permissions'
     | 'analytics'
   >('overview');
+
+  // Bulk Price Modal & Table Multi-select State
+  const [isBulkPriceModalOpen, setIsBulkPriceModalOpen] = useState(false);
+  const [selectedCatalogProductIds, setSelectedCatalogProductIds] = useState<string[]>([]);
+  const [bulkInitialCategory, setBulkInitialCategory] = useState<string>('ALL');
+  const [bulkInitialSeller, setBulkInitialSeller] = useState<string>('ALL');
 
   // Category State
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
@@ -178,6 +192,32 @@ export const AdminDashboard: React.FC = () => {
 
   const handleCancelInlinePriceEdit = () => {
     setInlineEditingProductId(null);
+  };
+
+  const handleToggleSelectProduct = (id: string) => {
+    setSelectedCatalogProductIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFiltered = (selectAll: boolean) => {
+    if (selectAll) {
+      const ids = filteredCatalog.map((p) => p.id);
+      setSelectedCatalogProductIds(ids);
+    } else {
+      setSelectedCatalogProductIds([]);
+    }
+  };
+
+  const handleQuickAdjustSelected = (mode: 'percentage_increase' | 'percentage_decrease', val: number) => {
+    if (selectedCatalogProductIds.length === 0) return;
+    bulkUpdateProductPrices({
+      productIds: selectedCatalogProductIds,
+      mode,
+      value: val,
+      roundingRule: 'nearest_100',
+      updateOriginalPrice: mode === 'percentage_decrease' ? 'set_to_old_price' : 'scale_proportionally',
+    });
   };
 
   // Platform Metrics
@@ -682,6 +722,25 @@ export const AdminDashboard: React.FC = () => {
                 </button>
 
                 <button
+                  id="admin-overview-bulk-price-btn"
+                  onClick={() => {
+                    setBulkInitialCategory('ALL');
+                    setBulkInitialSeller('ALL');
+                    setIsBulkPriceModalOpen(true);
+                  }}
+                  className="w-full p-3 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 hover:from-purple-100 hover:to-indigo-100 text-purple-950 border border-purple-200/80 rounded-2xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-purple-600" />
+                    <div className="text-left">
+                      <span>Bulk Price Adjuster</span>
+                      <p className="text-[10px] text-purple-600 font-normal">Change prices across all {products.length} products</p>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-purple-500" />
+                </button>
+
+                <button
                   onClick={() => {
                     setAdminTab('users');
                     setIsAddUserOpen(true);
@@ -840,7 +899,7 @@ export const AdminDashboard: React.FC = () => {
       {/* TAB 3: Catalog Moderation & Management */}
       {adminTab === 'catalog' && (
         <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
                 <Package className="w-5 h-5 text-purple-600" />
@@ -854,14 +913,43 @@ export const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <button
-              id="admin-add-product-catalog-btn"
-              onClick={handleOpenAddProduct}
-              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Product</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {canUndoPriceAdjustment && (
+                <button
+                  onClick={undoLastPriceAdjustment}
+                  title="Revert last price changes"
+                  className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Undo Last Price Change</span>
+                </button>
+              )}
+
+              <button
+                id="admin-bulk-change-price-btn"
+                onClick={() => {
+                  setBulkInitialCategory(catalogCategoryFilter);
+                  setBulkInitialSeller(catalogSellerFilter);
+                  setIsBulkPriceModalOpen(true);
+                }}
+                className="px-4 py-2.5 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 hover:from-purple-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer shrink-0"
+              >
+                <DollarSign className="w-4 h-4 text-amber-300" />
+                <span>Bulk Adjust Prices</span>
+                <span className="px-1.5 py-0.2 bg-amber-400 text-purple-950 text-[9px] font-black rounded-md ml-0.5">
+                  ALL ({products.length})
+                </span>
+              </button>
+
+              <button
+                id="admin-add-product-catalog-btn"
+                onClick={handleOpenAddProduct}
+                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Product</span>
+              </button>
+            </div>
           </div>
 
           {/* Catalog Filter Controls Bar */}
@@ -1036,11 +1124,23 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Catalog Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden relative">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                   <tr>
+                    <th className="p-4 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredCatalog.length > 0 &&
+                          filteredCatalog.every((p) => selectedCatalogProductIds.includes(p.id))
+                        }
+                        onChange={(e) => handleSelectAllFiltered(e.target.checked)}
+                        className="rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        title="Select all filtered items"
+                      />
+                    </th>
                     <th className="p-4">Product Item</th>
                     <th className="p-4">Brand / Category</th>
                     <th className="p-4">Seller Source</th>
@@ -1054,7 +1154,7 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {filteredCatalog.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                      <td colSpan={9} className="p-8 text-center text-slate-400">
                         <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                         <p className="font-semibold text-slate-600">No products found matching filters</p>
                         <button
@@ -1067,191 +1167,263 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredCatalog.map((prod) => (
-                      <tr key={prod.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={prod.images[0]}
-                              alt={prod.title}
-                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
-                              referrerPolicy="no-referrer"
+                    filteredCatalog.map((prod) => {
+                      const isSelected = selectedCatalogProductIds.includes(prod.id);
+                      return (
+                        <tr
+                          key={prod.id}
+                          className={`transition-colors ${
+                            isSelected ? 'bg-purple-50/60' : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <td className="p-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectProduct(prod.id)}
+                              className="rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
                             />
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 line-clamp-1 hover:text-purple-600 transition-colors">
-                                {prod.title}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] text-slate-400 font-mono">ID: {prod.id}</span>
-                                {prod.rating && (
-                                  <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
-                                    ★ {prod.rating}
-                                  </span>
-                                )}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={prod.images[0]}
+                                alt={prod.title}
+                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 line-clamp-1 hover:text-purple-600 transition-colors">
+                                  {prod.title}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-slate-400 font-mono">ID: {prod.id}</span>
+                                  {prod.rating && (
+                                    <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
+                                      ★ {prod.rating}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <p className="font-semibold text-slate-800">{prod.brand}</p>
-                          <span className="text-slate-400 text-[10px]">{prod.category}</span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-1.5">
-                            {prod.sellerId === 'admin-official' ? (
-                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-md">
-                                👑 CartNova HQ
-                              </span>
+                          </td>
+                          <td className="p-4">
+                            <p className="font-semibold text-slate-800">{prod.brand}</p>
+                            <span className="text-slate-400 text-[10px]">{prod.category}</span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1.5">
+                              {prod.sellerId === 'admin-official' ? (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-md">
+                                  👑 CartNova HQ
+                                </span>
+                              ) : (
+                                <span className="text-slate-700 font-medium truncate max-w-[120px]">
+                                  {prod.sellerName}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            {inlineEditingProductId === prod.id ? (
+                              <div className="space-y-1.5 min-w-[150px] p-2 bg-purple-50 rounded-xl border border-purple-200">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-500 block">Price (₦)</label>
+                                  <input
+                                    id={`admin-inline-price-input-${prod.id}`}
+                                    type="number"
+                                    min={100}
+                                    value={inlinePriceValue}
+                                    onChange={(e) => setInlinePriceValue(e.target.value)}
+                                    className="w-full px-2 py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-purple-600"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
+                                      if (e.key === 'Escape') handleCancelInlinePriceEdit();
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-500 block">MSRP / Original (₦)</label>
+                                  <input
+                                    type="number"
+                                    min={100}
+                                    value={inlineOriginalPriceValue}
+                                    onChange={(e) => setInlineOriginalPriceValue(e.target.value)}
+                                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-purple-600"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
+                                      if (e.key === 'Escape') handleCancelInlinePriceEdit();
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1 pt-1">
+                                  <button
+                                    id={`admin-save-price-${prod.id}`}
+                                    onClick={() => handleSaveInlinePrice(prod.id)}
+                                    className="flex-1 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[10px] font-bold cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={handleCancelInlinePriceEdit}
+                                    className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[10px] font-bold cursor-pointer"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
                             ) : (
-                              <span className="text-slate-700 font-medium truncate max-w-[120px]">
-                                {prod.sellerName}
-                              </span>
+                              <div className="group/price flex items-start gap-1.5">
+                                <div>
+                                  <p className="font-bold text-slate-900">{formatPrice(prod.price)}</p>
+                                  {prod.originalPrice && prod.originalPrice > prod.price && (
+                                    <p className="text-[10px] text-slate-400 line-through">
+                                      {formatPrice(prod.originalPrice)}
+                                    </p>
+                                  )}
+                                </div>
+                                <button
+                                  id={`admin-quick-price-btn-${prod.id}`}
+                                  onClick={() => handleStartInlinePriceEdit(prod)}
+                                  title="Change Price"
+                                  className="opacity-0 group-hover/price:opacity-100 p-1 text-purple-600 hover:bg-purple-50 rounded-md transition-opacity cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          {inlineEditingProductId === prod.id ? (
-                            <div className="space-y-1.5 min-w-[150px] p-2 bg-purple-50 rounded-xl border border-purple-200">
-                              <div>
-                                <label className="text-[9px] font-bold text-slate-500 block">Price (₦)</label>
-                                <input
-                                  id={`admin-inline-price-input-${prod.id}`}
-                                  type="number"
-                                  min={100}
-                                  value={inlinePriceValue}
-                                  onChange={(e) => setInlinePriceValue(e.target.value)}
-                                  className="w-full px-2 py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-purple-600"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
-                                    if (e.key === 'Escape') handleCancelInlinePriceEdit();
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[9px] font-bold text-slate-500 block">MSRP / Original (₦)</label>
-                                <input
-                                  type="number"
-                                  min={100}
-                                  value={inlineOriginalPriceValue}
-                                  onChange={(e) => setInlineOriginalPriceValue(e.target.value)}
-                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-purple-600"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveInlinePrice(prod.id);
-                                    if (e.key === 'Escape') handleCancelInlinePriceEdit();
-                                  }}
-                                />
-                              </div>
-                              <div className="flex items-center gap-1 pt-1">
-                                <button
-                                  id={`admin-save-price-${prod.id}`}
-                                  onClick={() => handleSaveInlinePrice(prod.id)}
-                                  className="flex-1 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[10px] font-bold cursor-pointer"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={handleCancelInlinePriceEdit}
-                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md text-[10px] font-bold cursor-pointer"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="group/price flex items-start gap-1.5">
-                              <div>
-                                <p className="font-bold text-slate-900">{formatPrice(prod.price)}</p>
-                                {prod.originalPrice && prod.originalPrice > prod.price && (
-                                  <p className="text-[10px] text-slate-400 line-through">
-                                    {formatPrice(prod.originalPrice)}
-                                  </p>
-                                )}
-                              </div>
+                          </td>
+                          <td className="p-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                prod.stock <= 5
+                                  ? 'bg-rose-100 text-rose-700 font-black'
+                                  : prod.stock <= 15
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-emerald-50 text-emerald-700'
+                              }`}
+                            >
+                              {prod.stock} units
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => updateProduct(prod.id, { isFeatured: !prod.isFeatured })}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                                prod.isFeatured
+                                  ? 'bg-indigo-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {prod.isFeatured ? '★ Featured' : 'Standard'}
+                            </button>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() =>
+                                updateProduct(prod.id, {
+                                 isFlashDeal: !prod.isFlashDeal,
+                                 discountPercentage: prod.isFlashDeal ? undefined : 20,
+                                })
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                                prod.isFlashDeal
+                                  ? 'bg-rose-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {prod.isFlashDeal ? '⚡ Flash' : 'Off'}
+                            </button>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
                               <button
-                                id={`admin-quick-price-btn-${prod.id}`}
-                                onClick={() => handleStartInlinePriceEdit(prod)}
-                                title="Change Price"
-                                className="opacity-0 group-hover/price:opacity-100 p-1 text-purple-600 hover:bg-purple-50 rounded-md transition-opacity cursor-pointer"
+                                id={`admin-edit-product-${prod.id}`}
+                                onClick={() => handleOpenEditProduct(prod)}
+                                title="Edit product details & pricing"
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
                               >
-                                <Edit2 className="w-3.5 h-3.5" />
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                id={`admin-delete-product-${prod.id}`}
+                                onClick={() => {
+                                  if (confirm(`Remove listing "${prod.title}" from platform?`)) {
+                                    deleteProduct(prod.id);
+                                  }
+                                }}
+                                title="Delete product"
+                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              prod.stock <= 5
-                                ? 'bg-rose-100 text-rose-700 font-black'
-                                : prod.stock <= 15
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-emerald-50 text-emerald-700'
-                            }`}
-                          >
-                            {prod.stock} units
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => updateProduct(prod.id, { isFeatured: !prod.isFeatured })}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                              prod.isFeatured
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                          >
-                            {prod.isFeatured ? '★ Featured' : 'Standard'}
-                          </button>
-                        </td>
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() =>
-                              updateProduct(prod.id, {
-                                isFlashDeal: !prod.isFlashDeal,
-                                discountPercentage: prod.isFlashDeal ? undefined : 20,
-                              })
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                              prod.isFlashDeal
-                                ? 'bg-rose-600 text-white shadow-xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                          >
-                            {prod.isFlashDeal ? '⚡ Flash' : 'Off'}
-                          </button>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              id={`admin-edit-product-${prod.id}`}
-                              onClick={() => handleOpenEditProduct(prod)}
-                              title="Edit product details & pricing"
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              id={`admin-delete-product-${prod.id}`}
-                              onClick={() => {
-                                if (confirm(`Remove listing "${prod.title}" from platform?`)) {
-                                  deleteProduct(prod.id);
-                                }
-                              }}
-                              title="Delete product"
-                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* Floating Batch Actions Bar (when rows are selected) */}
+          {selectedCatalogProductIds.length > 0 && (
+            <div className="sticky bottom-4 z-30 bg-slate-900 text-white p-3 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-xl bg-purple-600 text-white text-xs font-black flex items-center justify-center shadow-xs">
+                  {selectedCatalogProductIds.length}
+                </span>
+                <div>
+                  <p className="text-xs font-bold leading-tight">
+                    {selectedCatalogProductIds.length} Products Selected
+                  </p>
+                  <button
+                    onClick={() => handleSelectAllFiltered(true)}
+                    className="text-[10px] text-purple-300 hover:text-purple-200 underline cursor-pointer"
+                  >
+                    Select all {filteredCatalog.length} filtered products
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleQuickAdjustSelected('percentage_increase', 10)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                  title="Quick +10% price increase"
+                >
+                  +10% Increase
+                </button>
+
+                <button
+                  onClick={() => handleQuickAdjustSelected('percentage_decrease', 20)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                  title="Quick -20% sale discount"
+                >
+                  -20% Sale Markdown
+                </button>
+
+                <button
+                  id="admin-batch-price-adjust-btn"
+                  onClick={() => setIsBulkPriceModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-600/30 cursor-pointer"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Bulk Price Adjuster</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedCatalogProductIds([])}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Deselect
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1878,6 +2050,14 @@ export const AdminDashboard: React.FC = () => {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         productToEdit={editingProduct}
+      />
+
+      <AdminBulkPriceModal
+        isOpen={isBulkPriceModalOpen}
+        onClose={() => setIsBulkPriceModalOpen(false)}
+        selectedProductIds={selectedCatalogProductIds}
+        initialCategory={bulkInitialCategory}
+        initialSeller={bulkInitialSeller}
       />
 
       {/* Modal: Add User */}

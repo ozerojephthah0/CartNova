@@ -4,6 +4,7 @@ import { ToastContainer } from './components/common/Toast';
 import { Header } from './components/common/Header';
 import { RoleSwitcher } from './components/common/RoleSwitcher';
 import { MobileBottomNav } from './components/common/MobileBottomNav';
+import { RouteGuard } from './components/common/RouteGuard';
 
 // Customer Components
 import { HeroBanner } from './components/customer/HeroBanner';
@@ -77,62 +78,64 @@ const MainContent: React.FC = () => {
         onOpenSpinWheel={openSpinWheel}
       />
 
-      {/* Main Container View Based on Active Role */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 pb-24 md:pb-6">
-        {/* CUSTOMER VIEW */}
-        {activeRole === 'customer' && (
-          <>
-            {activeCustomerTab === 'shop' && (
-              <div>
-                {/* Seasonal Events Promotional Banner Strip (20% OFF Guaranteed) */}
-                <SeasonalEventBanner />
+      {/* Main Container View Based on Active Role & Protected by RouteGuard */}
+      <RouteGuard>
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 pb-24 md:pb-6">
+          {/* CUSTOMER VIEW */}
+          {activeRole === 'customer' && (
+            <>
+              {activeCustomerTab === 'shop' && (
+                <div>
+                  {/* Seasonal Events Promotional Banner Strip (20% OFF Guaranteed) */}
+                  <SeasonalEventBanner />
 
-                {/* Temu Trust & Price Slash Bar */}
-                <TemuPriceSlashBar onOpenSpinWheel={() => setIsSpinWheelOpen(true)} />
+                  {/* Temu Trust & Price Slash Bar */}
+                  <TemuPriceSlashBar onOpenSpinWheel={() => setIsSpinWheelOpen(true)} />
 
-                {/* Hero Banner with Spin & Win CTA */}
-                <HeroBanner onOpenSpinWheel={() => setIsSpinWheelOpen(true)} />
+                  {/* Hero Banner with Spin & Win CTA */}
+                  <HeroBanner onOpenSpinWheel={() => setIsSpinWheelOpen(true)} />
 
-                {/* Flash Deals with Lightning Slashing */}
-                <FlashDeals />
+                  {/* Flash Deals with Lightning Slashing */}
+                  <FlashDeals />
 
-                {/* Temu Bargain Zone */}
-                <TemuBargainZone />
+                  {/* Temu Bargain Zone */}
+                  <TemuBargainZone />
 
-                {/* Category Explorer */}
-                <CategoryBar />
+                  {/* Category Explorer */}
+                  <CategoryBar />
 
-                {/* Product Catalog Grid */}
-                <ProductGrid />
-              </div>
-            )}
+                  {/* Product Catalog Grid */}
+                  <ProductGrid />
+                </div>
+              )}
 
-            {activeCustomerTab === 'seasonal-events' && <SeasonalEventsView />}
+              {activeCustomerTab === 'seasonal-events' && <SeasonalEventsView />}
 
-            {activeCustomerTab === 'product-detail' && <ProductDetailPage />}
+              {activeCustomerTab === 'product-detail' && <ProductDetailPage />}
 
-            {activeCustomerTab === 'orders' && <OrdersView />}
+              {activeCustomerTab === 'orders' && <OrdersView />}
 
-            {activeCustomerTab === 'wishlist' && <WishlistView />}
+              {activeCustomerTab === 'wishlist' && <WishlistView />}
 
-            {activeCustomerTab === 'profile' && <CustomerProfileView />}
+              {activeCustomerTab === 'profile' && <CustomerProfileView />}
 
-            {activeCustomerTab === 'notifications' && <NotificationsView />}
+              {activeCustomerTab === 'notifications' && <NotificationsView />}
 
-            {activeCustomerTab === 'support' && <CustomerSupportView />}
+              {activeCustomerTab === 'support' && <CustomerSupportView />}
 
-            {activeCustomerTab === 'referrals' && <ReferralRewardsView />}
+              {activeCustomerTab === 'referrals' && <ReferralRewardsView />}
 
-            {activeCustomerTab === 'seller-store' && <SellerStorefrontView />}
-          </>
-        )}
+              {activeCustomerTab === 'seller-store' && <SellerStorefrontView />}
+            </>
+          )}
 
-        {/* SELLER VIEW */}
-        {activeRole === 'seller' && <SellerDashboard />}
+          {/* SELLER VIEW */}
+          {activeRole === 'seller' && <SellerDashboard />}
 
-        {/* ADMIN VIEW */}
-        {activeRole === 'admin' && <AdminDashboard />}
-      </main>
+          {/* ADMIN VIEW */}
+          {activeRole === 'admin' && <AdminDashboard />}
+        </main>
+      </RouteGuard>
 
       {/* Floating Temu Spin & Win Launcher Button */}
       {activeRole === 'customer' && (

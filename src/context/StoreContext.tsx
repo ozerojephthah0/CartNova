@@ -35,7 +35,11 @@ import {
   SimulatedTransaction,
   SimulatedPaymentStatus,
   SimulatedPaymentConfig,
+  BulkPriceAdjustmentParams,
+  PriceAdjustmentSnapshot,
+  PriceAdjustmentSnapshotItem,
 } from '../types';
+import { calculateNewProductPrice } from '../utils/priceCalculator';
 import {
   INITIAL_PRODUCTS,
   INITIAL_CATEGORIES,
@@ -102,6 +106,16 @@ interface StoreContextType {
   categories: Category[];
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
+  bulkUpdateMultipleProducts: (
+    updates: { id: string; price?: number; originalPrice?: number; discountPercentage?: number; [key: string]: any }[]
+  ) => void;
+  bulkUpdateProductPrices: (
+    params: BulkPriceAdjustmentParams,
+    excludedProductIds?: string[]
+  ) => { updatedCount: number; snapshotId?: string };
+  undoLastPriceAdjustment: () => boolean;
+  canUndoPriceAdjustment: boolean;
+  priceAdjustmentHistory: PriceAdjustmentSnapshot[];
   deleteProduct: (id: string) => void;
   toggleFeaturedProduct: (id: string) => void;
   addCategory: (category: Category) => void;
@@ -482,13 +496,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const init = initialMap.get(p.id);
             if (init) {
               return {
+                ...init,
                 ...p,
-                price: init.price,
-                originalPrice: init.originalPrice,
-                discountPercentage: init.discountPercentage,
-                images: init.images,
-                category: init.category,
-                tags: init.tags || p.tags,
+                // Retain custom prices and stock if they were modified
+                price: typeof p.price === 'number' && p.price > 0 ? p.price : init.price,
+                originalPrice: typeof p.originalPrice === 'number' ? p.originalPrice : init.originalPrice,
+                discountPercentage: p.discountPercentage !== undefined ? p.discountPercentage : init.discountPercentage,
+                images: p.images && p.images.length > 0 ? p.images : init.images,
+                category: p.category || init.category,
+                tags: p.tags || init.tags,
               };
             }
             // Sanitize any legacy product categories to Phones & Tablets
@@ -612,6 +628,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.documentElement.classList.remove('dark');
     }
   }, [themeMode]);
+
+  // Price Adjustment History / Snapshots (for Rollback / Undo)
+  const [priceAdjustmentHistory, setPriceAdjustmentHistory] = useState<PriceAdjustmentSnapshot[]>(() => {
+    try {
+      const saved = localStorage.getItem('cartnova_price_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cartnova_price_history', JSON.stringify(priceAdjustmentHistory.slice(0, 10)));
+    } catch {}
+  }, [priceAdjustmentHistory]);
 
   // Auth modal state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -1751,6 +1783,170 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
     addToast('success', 'Product Updated', 'Product details saved successfully');
   };
+
+  /**
+   * Bulk updates multiple products with custom individual values
+   */
+  const bulkUpdateMultipleProducts = (
+    updates: { id: string; price?: number; originalPrice?: number; discountPercentage?: number; [key: string]: any }[]
+  ) => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required for bulk updates.');
+      return;
+    }
+    const updateMap = new Map(updates.map((u) => [u.id, u]));
+    setProducts((prev) =>
+      prev.map((p) => {
+        const u = updateMap.get(p.id);
+        return u ? { ...p, ...u } : p;
+      })
+    );
+    addToast('success', 'Bulk Update Saved', `Successfully updated ${updates.length} products.`);
+  };
+
+  /**
+   * Bulk adjust prices across all products or target filters with mathematical accuracy and undo snapshot
+   */
+  const bulkUpdateProductPrices = (
+    params: BulkPriceAdjustmentParams,
+    excludedProductIds: string[] = []
+  ): { updatedCount: number; snapshotId?: string } => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required to adjust catalog prices.');
+      return { updatedCount: 0 };
+    }
+
+    const excludedSet = new Set(excludedProductIds);
+    const affectedSnapshotItems: PriceAdjustmentSnapshot['products'] = [];
+
+    const updatedCatalog = products.map((prod) => {
+      // Check if product matches selection criteria
+      if (params.productIds && params.productIds.length > 0) {
+        if (!params.productIds.includes(prod.id)) return prod;
+      }
+      if (params.category && params.category !== 'ALL' && prod.category.toLowerCase() !== params.category.toLowerCase()) {
+        return prod;
+      }
+      if (params.sellerId && params.sellerId !== 'ALL' && prod.sellerId !== params.sellerId) {
+        return prod;
+      }
+      if (params.searchQuery && params.searchQuery.trim()) {
+        const q = params.searchQuery.toLowerCase().trim();
+        const match =
+          prod.title.toLowerCase().includes(q) ||
+          prod.brand.toLowerCase().includes(q) ||
+          prod.category.toLowerCase().includes(q);
+        if (!match) return prod;
+      }
+
+      // Check if explicitly excluded by user
+      if (excludedSet.has(prod.id)) {
+        return prod;
+      }
+
+      const { newPrice, newOriginalPrice, newDiscountPercentage } = calculateNewProductPrice(prod, params);
+
+      affectedSnapshotItems.push({
+        id: prod.id,
+        oldPrice: prod.price,
+        oldOriginalPrice: prod.originalPrice,
+        oldDiscountPercentage: prod.discountPercentage,
+        newPrice,
+        newOriginalPrice,
+        newDiscountPercentage,
+      });
+
+      return {
+        ...prod,
+        price: newPrice,
+        originalPrice: newOriginalPrice,
+        discountPercentage: newDiscountPercentage,
+      };
+    });
+
+    if (affectedSnapshotItems.length === 0) {
+      addToast('info', 'No Products Changed', 'No matching products were found for this adjustment.');
+      return { updatedCount: 0 };
+    }
+
+    // Create rollback snapshot
+    const snapshotId = 'snap-' + Date.now();
+    const modeLabel =
+      params.mode === 'percentage_increase'
+        ? `+${params.value}% Price Increase`
+        : params.mode === 'percentage_decrease'
+        ? `-${params.value}% Storewide Discount`
+        : params.mode === 'fixed_increase'
+        ? `+₦${params.value.toLocaleString()} Price Adjustment`
+        : params.mode === 'fixed_decrease'
+        ? `-₦${params.value.toLocaleString()} Price Adjustment`
+        : params.mode === 'set_fixed'
+        ? `Fixed Price Set to ₦${params.value.toLocaleString()}`
+        : params.mode === 'reset_to_msrp'
+        ? 'Restored MSRP Prices'
+        : 'Flash Sale Markdown';
+
+    const newSnapshot: PriceAdjustmentSnapshot = {
+      id: snapshotId,
+      timestamp: new Date().toISOString(),
+      description: `${modeLabel} on ${affectedSnapshotItems.length} products`,
+      affectedProductCount: affectedSnapshotItems.length,
+      products: affectedSnapshotItems,
+    };
+
+    setPriceAdjustmentHistory((prev) => [newSnapshot, ...prev.slice(0, 9)]);
+    setProducts(updatedCatalog);
+
+    addToast(
+      'success',
+      'Prices Updated Successfully',
+      `Modified prices for ${affectedSnapshotItems.length} products (${modeLabel})`
+    );
+
+    return { updatedCount: affectedSnapshotItems.length, snapshotId };
+  };
+
+  /**
+   * Undo the most recent price adjustment and restore original prices
+   */
+  const undoLastPriceAdjustment = (): boolean => {
+    if (activeRole !== 'admin') {
+      addToast('error', 'Access Denied', 'Admin privileges are required.');
+      return false;
+    }
+    if (priceAdjustmentHistory.length === 0) {
+      addToast('info', 'Nothing to Revert', 'No previous price adjustments found to undo.');
+      return false;
+    }
+
+    const [latestSnapshot, ...remainingSnapshots] = priceAdjustmentHistory;
+    const restoreMap = new Map<string, PriceAdjustmentSnapshotItem>(
+      latestSnapshot.products.map((p) => [p.id, p])
+    );
+
+    setProducts((prev) =>
+      prev.map((prod) => {
+        const record = restoreMap.get(prod.id);
+        if (!record) return prod;
+        return {
+          ...prod,
+          price: record.oldPrice,
+          originalPrice: record.oldOriginalPrice,
+          discountPercentage: record.oldDiscountPercentage,
+        };
+      })
+    );
+
+    setPriceAdjustmentHistory(remainingSnapshots);
+    addToast(
+      'info',
+      'Price Adjustment Reverted',
+      `Restored previous prices for ${latestSnapshot.affectedProductCount} products.`
+    );
+    return true;
+  };
+
+  const canUndoPriceAdjustment = priceAdjustmentHistory.length > 0;
 
   const deleteProduct = (id: string) => {
     if (activeRole !== 'admin' && activeRole !== 'seller') {
@@ -3809,6 +4005,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         categories,
         addProduct,
         updateProduct,
+        bulkUpdateMultipleProducts,
+        bulkUpdateProductPrices,
+        undoLastPriceAdjustment,
+        canUndoPriceAdjustment,
+        priceAdjustmentHistory,
         deleteProduct,
         toggleFeaturedProduct,
         addCategory,

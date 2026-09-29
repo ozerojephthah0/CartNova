@@ -508,9 +508,17 @@ export const OrderInformationMenuDrawer: React.FC<OrderInformationMenuDrawerProp
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400">Payment Method:</span>
                       <span className="font-bold text-slate-900 dark:text-white uppercase">
-                        {order.paymentMethod.replace('_', ' ')}
+                        {order.paymentMethod === 'paystack' ? 'Paystack Gateway' : order.paymentMethod.replace('_', ' ')}
                       </span>
                     </div>
+                    {order.paymentReference && (
+                      <div className="flex items-center justify-between text-[11px] bg-slate-100 dark:bg-slate-700/60 p-2 rounded-lg">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Paystack Reference:</span>
+                        <span className="font-mono font-bold text-[#00C3F7] dark:text-[#00C3F7]">
+                          {order.paymentReference}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400">Items Subtotal:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">

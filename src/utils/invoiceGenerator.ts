@@ -347,8 +347,16 @@ export function generateInvoiceHTML(order: Order, formatPrice: (val: number) => 
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px;">
           <span style="color: #64748b;">Payment Method:</span>
-          <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${order.paymentMethod.replace('_', ' ')}</span>
+          <span style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${order.paymentMethod === 'paystack' ? 'PAYSTACK (ONLINE)' : order.paymentMethod.replace('_', ' ')}</span>
         </div>
+        ${
+          order.paymentReference
+            ? `<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px;">
+                <span style="color: #64748b;">Payment Ref:</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #0ea5e9;">${order.paymentReference}</span>
+              </div>`
+            : ''
+        }
         <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px;">
           <span style="color: #64748b;">Delivery Carrier:</span>
           <span style="font-weight: 600; color: #0f172a;">${order.carrier || 'Express Courier Logistics'}</span>

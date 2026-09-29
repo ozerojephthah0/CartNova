@@ -68,6 +68,60 @@ export interface Product {
   createdAt: string;
 }
 
+export type BulkPriceAdjustmentMode =
+  | 'percentage_increase'
+  | 'percentage_decrease'
+  | 'fixed_increase'
+  | 'fixed_decrease'
+  | 'set_fixed'
+  | 'set_discount_from_msrp'
+  | 'reset_to_msrp'
+  | 'flash_sale_discount';
+
+export type PriceRoundingRule =
+  | 'none'
+  | 'nearest_10'
+  | 'nearest_100'
+  | 'nearest_500'
+  | 'nearest_1000'
+  | 'end_in_99'
+  | 'end_in_990'
+  | 'charm_99'
+  | 'charm_990';
+
+export interface BulkPriceAdjustmentParams {
+  productIds?: string[]; // If omitted or empty, targets all matching filters or all catalog products
+  mode: BulkPriceAdjustmentMode;
+  value: number; // e.g. 10 for 10%, 1000 for ₦1000, 5000 for fixed
+  roundingRule?: PriceRoundingRule;
+  minPriceFloor?: number;
+  maxPriceCeiling?: number;
+  updateOriginalPrice?: 'keep' | 'keep_current' | 'set_to_old_price' | 'scale_proportionally' | 'clear';
+  applyAsFlashDeal?: boolean;
+  category?: string;
+  sellerId?: string;
+  searchQuery?: string;
+}
+
+export interface PriceAdjustmentSnapshotItem {
+  id: string;
+  title?: string;
+  oldPrice: number;
+  oldOriginalPrice?: number;
+  oldDiscountPercentage?: number;
+  newPrice: number;
+  newOriginalPrice?: number;
+  newDiscountPercentage?: number;
+}
+
+export interface PriceAdjustmentSnapshot {
+  id: string;
+  timestamp: string;
+  description: string;
+  affectedProductCount: number;
+  products: PriceAdjustmentSnapshotItem[];
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -78,7 +132,53 @@ export interface CartItem {
 }
 
 export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-export type PaymentMethod = 'card' | 'apple_pay' | 'google_pay' | 'cod';
+export type PaymentMethod = 'paystack' | 'card' | 'bank_transfer' | 'apple_pay' | 'google_pay' | 'cod';
+
+export interface PaystackInitResponse {
+  status: boolean;
+  message: string;
+  data?: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+  error?: string;
+  isSimulated?: boolean;
+}
+
+export interface PaystackVerifyResponse {
+  status: boolean;
+  message: string;
+  data?: {
+    id: number;
+    domain: string;
+    status: 'success' | 'failed' | 'abandoned';
+    reference: string;
+    amount: number;
+    currency: string;
+    paid_at: string;
+    channel: string;
+    gateway_response: string;
+    ip_address?: string;
+    customer?: {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      email: string;
+      phone?: string;
+    };
+    metadata?: Record<string, any>;
+  };
+  error?: string;
+}
+
+export interface PaystackGatewayConfig {
+  isConfigured: boolean;
+  isLive: boolean;
+  publicKey: string;
+  supportedChannels: string[];
+  supportedCurrencies: string[];
+}
 
 export interface OrderItem {
   productId: string;
@@ -115,6 +215,10 @@ export interface Order {
   status: OrderStatus;
   paymentStatus: 'paid' | 'pending' | 'refunded';
   paymentMethod: PaymentMethod;
+  paymentReference?: string;
+  paystackAccessCode?: string;
+  paystackChannel?: string;
+  paystackPaidAt?: string;
   shippingAddress: {
     fullName: string;
     street: string;
@@ -631,4 +735,5 @@ export interface SimulatedPaymentConfig {
   demoBannerEnabled: boolean;
   smtpConfigured: boolean;
 }
+
 

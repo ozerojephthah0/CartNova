@@ -25,10 +25,12 @@ import {
   AlertCircle,
   Smartphone,
   Check,
+  Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { downloadDigitalInvoice, printDigitalInvoice } from '../../utils/invoiceGenerator';
+import { PaystackPaymentModal } from './PaystackPaymentModal';
 
 export const CheckoutModal: React.FC = () => {
   const {
@@ -54,6 +56,10 @@ export const CheckoutModal: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [showItemsReview, setShowItemsReview] = useState(true);
+
+  // Paystack modal state
+  const [isPaystackOpen, setIsPaystackOpen] = useState(false);
+  const [paystackReference, setPaystackReference] = useState('');
 
   // Form State
   const [shippingInfo, setShippingInfo] = useState({
@@ -116,7 +122,7 @@ export const CheckoutModal: React.FC = () => {
   }, [currentUser]);
 
   const [shippingSpeed, setShippingSpeed] = useState<'standard' | 'express' | 'overnight'>('standard');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paystack');
 
   // Card form state
   const [cardInfo, setCardInfo] = useState({
@@ -134,6 +140,86 @@ export const CheckoutModal: React.FC = () => {
       cvv: '884',
     });
     addToast('success', 'Demo Card Filled', 'Test Visa ending in 4242 populated');
+  };
+
+  const handleInitiatePaystack = () => {
+    const ref = `CN-PSTK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setPaystackReference(ref);
+    setIsPaystackOpen(true);
+  };
+
+  const handlePaystackSuccess = (result: {
+    reference: string;
+    status: string;
+    channel: string;
+    paidAt: string;
+    rawData?: any;
+  }) => {
+    setIsPaystackOpen(false);
+
+    const orderItems = checkoutItems.map((c) => ({
+      productId: c.productId,
+      productTitle: c.product.title,
+      productImage: c.product.images[0],
+      quantity: c.quantity,
+      unitPrice: c.product.price,
+      sellerId: c.product.sellerId,
+      sellerName: c.product.sellerName,
+      selectedVariant: c.selectedVariant,
+    }));
+
+    const newOrder = createOrder({
+      customerId: currentUser.id,
+      customerName: shippingInfo.fullName,
+      customerEmail: shippingInfo.email,
+      customerPhone: shippingInfo.phone,
+      items: orderItems,
+      subtotal: checkoutSubtotal,
+      tax: estimatedTax,
+      shippingFee: shippingCost,
+      discountAmount: discount,
+      couponCode: appliedCoupon?.code,
+      totalAmount: finalTotal,
+      status: 'pending',
+      paymentStatus: 'paid',
+      paymentMethod: 'paystack',
+      paymentReference: result.reference,
+      paystackChannel: result.channel,
+      paystackPaidAt: result.paidAt,
+      shippingAddress: {
+        fullName: shippingInfo.fullName,
+        street: shippingInfo.street,
+        city: shippingInfo.city,
+        state: shippingInfo.state,
+        zip: shippingInfo.zip,
+        country: shippingInfo.country,
+      },
+      shippingSpeed,
+      estimatedDelivery:
+        shippingSpeed === 'overnight'
+          ? 'Tomorrow by 10:30 AM'
+          : shippingSpeed === 'express'
+          ? '2-3 Business Days'
+          : '3-5 Business Days',
+    });
+
+    setPlacedOrder(newOrder);
+    setStep(4);
+    addToast(
+      'success',
+      'Paystack Payment Confirmed',
+      `Transaction of ${formatPrice(finalTotal)} verified (Ref: ${result.reference})`
+    );
+
+    try {
+      confetti({
+        particleCount: 140,
+        spread: 85,
+        origin: { y: 0.55 },
+      });
+    } catch {
+      // ignore
+    }
   };
 
   if (!isCheckoutOpen) return null;
@@ -178,6 +264,11 @@ export const CheckoutModal: React.FC = () => {
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (paymentMethod === 'paystack') {
+      handleInitiatePaystack();
+      return;
+    }
 
     const orderItems = checkoutItems.map((c) => ({
       productId: c.productId,
@@ -657,28 +748,94 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Selector Tabs */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
+                    {
+                      id: 'paystack',
+                      label: 'Paystack Gateway',
+                      badge: 'Instant & Secure',
+                      icon: Zap,
+                      highlight: true,
+                    },
                     { id: 'card', label: 'Credit / Debit Card', icon: CreditCard },
-                    { id: 'bank_transfer', label: 'Instant Bank Transfer', icon: Building },
-                    { id: 'apple_pay', label: 'Apple / Google Pay', icon: Smartphone },
+                    { id: 'bank_transfer', label: 'Virtual Transfer', icon: Building },
                     { id: 'cod', label: 'Cash on Delivery', icon: Truck },
                   ].map((pm) => (
                     <button
                       type="button"
                       key={pm.id}
                       onClick={() => setPaymentMethod(pm.id as any)}
-                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative ${
                         paymentMethod === pm.id
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold ring-2 ring-indigo-600/20'
+                          ? pm.id === 'paystack'
+                            ? 'border-[#00C3F7] bg-[#001737] text-white font-bold ring-2 ring-[#00C3F7]/40 shadow-sm'
+                            : 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold ring-2 ring-indigo-600/20'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
                       }`}
                     >
-                      <pm.icon className="w-4 h-4 mx-auto mb-1" />
+                      {pm.badge && (
+                        <span className="absolute -top-2 right-2 px-1.5 py-0.2 bg-[#00C3F7] text-[#001737] rounded-md text-[8px] font-black uppercase tracking-wider shadow-xs">
+                          {pm.badge}
+                        </span>
+                      )}
+                      <pm.icon className={`w-4 h-4 mx-auto mb-1 ${paymentMethod === pm.id && pm.id === 'paystack' ? 'text-[#00C3F7]' : ''}`} />
                       <span className="text-[11px] block leading-tight">{pm.label}</span>
                     </button>
                   ))}
                 </div>
 
                 {/* Payment Sub-Panel Details */}
+                {paymentMethod === 'paystack' && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#001737] text-white space-y-3.5 shadow-lg border border-slate-800">
+                    <div className="flex justify-between items-center text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-[#00C3F7]/20 flex items-center justify-center text-[#00C3F7] font-black">
+                          ⚡
+                        </div>
+                        <span className="font-extrabold text-[#00C3F7] tracking-tight text-sm">paystack</span>
+                        <span className="text-[10px] text-slate-300">Official Payment Gateway</span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md text-[10px] font-bold border border-emerald-500/30">
+                        Zero Extra Fees
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Pay easily via your preferred channel: <strong>Debit/Credit Cards (Mastercard, Visa, Verve)</strong>,{' '}
+                      <strong>Instant Bank Transfer</strong>, <strong>USSD Dial Code</strong>, or <strong>Apple Pay</strong>.
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+                        <CreditCard className="w-4 h-4 text-[#00C3F7] mx-auto mb-1" />
+                        <span className="text-[10px] font-bold block text-slate-200">Cards</span>
+                        <span className="text-[8px] text-slate-400">Visa / MC / Verve</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+                        <Building className="w-4 h-4 text-[#00C3F7] mx-auto mb-1" />
+                        <span className="text-[10px] font-bold block text-slate-200">Bank Transfer</span>
+                        <span className="text-[8px] text-slate-400">Virtual Account</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+                        <Smartphone className="w-4 h-4 text-[#00C3F7] mx-auto mb-1" />
+                        <span className="text-[10px] font-bold block text-slate-200">USSD</span>
+                        <span className="text-[8px] text-slate-400">*737#, *966# etc</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
+                        <Zap className="w-4 h-4 text-[#00C3F7] mx-auto mb-1" />
+                        <span className="text-[10px] font-bold block text-slate-200">Apple Pay</span>
+                        <span className="text-[8px] text-slate-400">1-Tap Checkout</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-white/10">
+                      <span className="flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Secured by 256-bit SSL encryption</span>
+                      </span>
+                      <span className="text-slate-300 font-mono">Instant Confirmation</span>
+                    </div>
+                  </div>
+                )}
+
                 {paymentMethod === 'card' && (
                   <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3.5 shadow-md">
                     <div className="flex justify-between items-center text-xs text-slate-400">
@@ -724,7 +881,7 @@ export const CheckoutModal: React.FC = () => {
                           CVV / CVC
                         </label>
                         <input
-                          type="text"
+                          type="password"
                           value={cardInfo.cvv}
                           onChange={(e) => setCardInfo({ ...cardInfo, cvv: e.target.value })}
                           className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 font-mono text-xs focus:outline-indigo-500 text-center"
@@ -889,6 +1046,22 @@ export const CheckoutModal: React.FC = () => {
                     <span>Total Paid</span>
                     <span className="text-emerald-600 text-base font-mono">{formatPrice(placedOrder.totalAmount)}</span>
                   </div>
+
+                  {/* Paystack Reference Stamp if available */}
+                  {placedOrder.paymentReference && (
+                    <div className="pt-2 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] bg-slate-100/70 p-2.5 rounded-xl">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="font-bold text-[#001737]">Paystack Verified:</span>
+                        <span className="font-mono text-slate-900 font-bold">{placedOrder.paymentReference}</span>
+                      </div>
+                      {placedOrder.paystackChannel && (
+                        <span className="text-slate-500 text-[10px] uppercase font-bold">
+                          Channel: {placedOrder.paystackChannel.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons: Invoice, Tracking & Continue Shopping */}
@@ -930,6 +1103,19 @@ export const CheckoutModal: React.FC = () => {
             )}
           </div>
         </motion.div>
+
+        {/* Interactive Paystack Payment Gateway Modal */}
+        <PaystackPaymentModal
+          isOpen={isPaystackOpen}
+          onClose={() => setIsPaystackOpen(false)}
+          amount={finalTotal}
+          currency="NGN"
+          email={shippingInfo.email || 'customer@cartnova.dev'}
+          customerName={shippingInfo.fullName || 'Customer'}
+          reference={paystackReference}
+          formatPrice={formatPrice}
+          onPaymentSuccess={handlePaystackSuccess}
+        />
       </div>
     </AnimatePresence>
   );

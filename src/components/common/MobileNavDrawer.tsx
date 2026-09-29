@@ -121,6 +121,17 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   const [activeSectionId, setActiveSectionId] = useState<string>('section-home');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Prevent background scrolling when full-screen menu is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [isOpen]);
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -285,65 +296,69 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-end" id="menu-modal-container">
-        {/* Semi-transparent Backdrop */}
+      <div
+        className="fixed inset-0 z-50 w-screen h-screen bg-slate-950/80 backdrop-blur-md flex flex-col overflow-hidden"
+        id="menu-modal-container"
+      >
+        {/* Full-Screen Modern Navigation Panel */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs cursor-pointer"
-          aria-label="Close menu backdrop"
-        />
-
-        {/* Clean, Spacious Slide-in Navigation Panel */}
-        <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          initial={{ opacity: 0, scale: 0.99, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.99, y: 8 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           id="menu-navigation-drawer"
-          className="relative w-full sm:w-[560px] md:w-[620px] lg:w-[660px] max-w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full shadow-2xl z-10 flex flex-col justify-between overflow-hidden"
+          className="relative w-full h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between overflow-hidden shadow-2xl"
         >
-          {/* Top Panel Header */}
-          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white shrink-0 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-black text-lg shadow-xs border border-white/20">
+          {/* Top Panel Header (Full-Screen Hero Header) */}
+          <header className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white shrink-0 shadow-md">
+            <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-xs border border-white/30 shrink-0">
                   CN
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-extrabold text-lg sm:text-xl leading-tight tracking-tight">CartNova Menu</h2>
-                    <span className="text-[10px] font-bold bg-white/25 px-2 py-0.5 rounded-full uppercase tracking-wider text-orange-50">
-                      {isLoggedIn ? currentUser.role : 'Guest'}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h2 className="font-black text-lg sm:text-2xl leading-tight tracking-tight text-white drop-shadow-xs">
+                      CartNova Navigation
+                    </h2>
+                    <span className="text-[10px] sm:text-xs font-black bg-white/25 px-2.5 py-0.5 rounded-full uppercase tracking-wider text-orange-50 border border-white/25">
+                      {isLoggedIn ? `${currentUser.role.toUpperCase()} MODE` : 'GUEST MODE'}
+                    </span>
+                    <span className="hidden md:inline-flex text-[11px] font-bold bg-black/20 text-orange-100 px-2 py-0.5 rounded-full">
+                      {products.length} Products • {categories.length} Categories
                     </span>
                   </div>
-                  <p className="text-xs text-orange-100 font-medium mt-0.5">
-                    Complete Store Directory & Immediate Controls
+                  <p className="text-xs sm:text-sm text-orange-100 font-medium mt-0.5 truncate">
+                    Complete Store Directory: Catalog, Shopping Bag, Orders, Wallet & Immediate Controls
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Close Button & Shortcut Indicator */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-orange-100 bg-black/25 px-2.5 py-1.5 rounded-xl border border-white/15">
+                  <kbd className="font-bold bg-white/20 px-1.5 py-0.5 rounded text-white">ESC</kbd>
+                  <span>to close</span>
+                </div>
+
                 <button
                   id="close-menu-drawer-btn"
                   type="button"
                   onClick={onClose}
-                  className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all cursor-pointer active:scale-95"
-                  aria-label="Close menu"
-                  title="Close menu (Esc)"
+                  className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white/20 hover:bg-white/30 active:scale-95 text-white font-black text-xs sm:text-sm transition-all cursor-pointer shadow-sm border border-white/30 focus:outline-hidden focus:ring-2 focus:ring-white/60"
+                  aria-label="Close navigation menu"
+                  title="Close Full-Screen Menu (Esc)"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 stroke-[2.5]" />
+                  <span className="font-black tracking-tight">Close</span>
                 </button>
               </div>
             </div>
 
             {/* Quick-Jump Section Navigator Strip */}
-            <div className="mt-3 pt-3 border-t border-white/15">
-              <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none pb-1">
-                {quickJumpSections.map((sec) => {
+            <div className="max-w-7xl mx-auto w-full mt-3 pt-3 border-t border-white/20">
+              <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pb-1">
+                {quickJumpSections.map((sec, idx) => {
                   const Icon = sec.icon;
                   const isActive = activeSectionId === sec.id;
                   return (
@@ -351,12 +366,13 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                       key={sec.id}
                       type="button"
                       onClick={() => scrollToSection(sec.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                         isActive
-                          ? 'bg-white text-orange-700 shadow-xs font-black'
-                          : 'bg-black/20 hover:bg-white/20 text-orange-100'
+                          ? 'bg-white text-orange-700 shadow-md font-black ring-2 ring-white/60 scale-105'
+                          : 'bg-black/25 hover:bg-white/20 text-orange-50 hover:text-white'
                       }`}
                     >
+                      <span className="text-[10px] opacity-75 font-mono">{idx + 1}.</span>
                       <Icon className="w-3.5 h-3.5" />
                       <span>{sec.label}</span>
                     </button>
@@ -364,17 +380,18 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                 })}
               </div>
             </div>
-          </div>
+          </header>
 
-          {/* Main Scrollable Content Panel with All Clearly Labeled Sections */}
-          <div
+          {/* Main Full-Screen Scrollable Content Panel */}
+          <main
             ref={scrollContainerRef}
-            className="p-4 sm:p-6 space-y-6 flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80"
+            className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 bg-slate-50 dark:bg-slate-950"
           >
+            <div className="max-w-7xl mx-auto space-y-8 divide-y divide-slate-200/80 dark:divide-slate-800/80">
             {/* ========================================================================= */}
             {/* 1. HOME SECTION                                                           */}
             {/* ========================================================================= */}
-            <section id="section-home" className="pt-2 first:pt-0 space-y-3">
+            <section id="section-home" className="pt-2 first:pt-0 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center">
@@ -611,28 +628,28 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-2">
                   Featured Product Highlights
                 </span>
-                <div className="space-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   {featuredQuickItems.map((prod) => (
                     <div
                       key={prod.id}
-                      className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img
                           src={prod.images[0]}
                           alt={prod.title}
-                          className="w-9 h-9 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
+                          className="w-10 h-10 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
                           referrerPolicy="no-referrer"
                         />
                         <div className="min-w-0">
-                          <p className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[180px] sm:max-w-[260px]">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[140px] sm:max-w-[180px]">
                             {prod.title}
                           </p>
                           <div className="flex items-center gap-2">
                             <span className="font-extrabold text-orange-600 dark:text-orange-400">
                               {formatPrice(prod.price)}
                             </span>
-                            <span className="text-[10px] text-slate-400">{prod.brand}</span>
+                            <span className="text-[10px] text-slate-400 truncate">{prod.brand}</span>
                           </div>
                         </div>
                       </div>
@@ -640,7 +657,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => handleQuickAdd(prod)}
-                        className="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        className="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-bold text-[11px] rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ml-1.5"
                       >
                         <Plus className="w-3 h-3" />
                         <span>Add</span>
@@ -720,8 +737,8 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                   </button>
                 </div>
               ) : (
-                /* 2-Column Responsive Categories Grid */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+                /* Multi-Column Responsive Categories Grid */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 max-h-96 overflow-y-auto pr-1">
                   {displayedDrawerCategories.map((cat) => {
                     const isSelected =
                       filters.category.toLowerCase() === cat.name.toLowerCase() ||
@@ -1423,47 +1440,47 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
               </div>
 
               {/* All Visual Themes Selection Grid */}
-              <div className="space-y-1.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
                 {themeOptions.map((opt) => (
                   <button
                     key={opt.id}
                     id={`menu-theme-swatch-${opt.id}`}
                     type="button"
                     onClick={() => setThemeMode(opt.id)}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+                    className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-all cursor-pointer border ${
                       themeMode === opt.id
-                        ? 'bg-white dark:bg-slate-900 border-2 border-orange-500 dark:border-orange-400 shadow-xs'
+                        ? 'bg-white dark:bg-slate-900 border-2 border-orange-500 dark:border-orange-400 shadow-xs ring-1 ring-orange-400/50'
                         : 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"
                         style={{
                           backgroundColor: opt.bgHex,
                           borderColor: `${opt.accentHex}40`,
                         }}
                       >
-                        {getThemeIcon(opt.id, 'w-3.5 h-3.5')}
+                        {getThemeIcon(opt.id, 'w-4 h-4')}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                             {opt.name}
                           </span>
                           <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                             {opt.badge}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                           {opt.description}
                         </p>
                       </div>
                     </div>
 
                     {themeMode === opt.id && (
-                      <div className="w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center shrink-0">
-                        <Check className="w-3 h-3" />
+                      <div className="w-5 h-5 rounded-full bg-orange-600 text-white flex items-center justify-center shrink-0 ml-2">
+                        <Check className="w-3 h-3 stroke-[3]" />
                       </div>
                     )}
                   </button>
@@ -1593,31 +1610,54 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                 </div>
               )}
             </section>
-          </div>
+            </div>
+          </main>
 
-          {/* Bottom Panel Footer with Quick Close & Customer Care Link */}
-          <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between shrink-0 text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveCustomerTab('support');
-                onClose();
-              }}
-              className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 font-semibold cursor-pointer"
-            >
-              <LifeBuoy className="w-4 h-4 text-orange-500" />
-              <span>24/7 Customer Support</span>
-            </button>
+          {/* Full-Screen Footer Bar with Quick Actions & Persistent Close Button */}
+          <footer className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 border-t border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0 shadow-xs z-10">
+            <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4 text-xs">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCustomerTab('support');
+                    onClose();
+                  }}
+                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 font-bold cursor-pointer transition-colors"
+                >
+                  <LifeBuoy className="w-4 h-4 text-orange-500" />
+                  <span className="hidden sm:inline">Need assistance?</span>
+                  <span>24/7 Live Support</span>
+                </button>
 
-            <button
-              id="menu-footer-close-btn"
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              Close Menu
-            </button>
-          </div>
+                {cartCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      setIsCartOpen(true);
+                    }}
+                    className="hidden md:flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-3 py-1 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Cart: {formatPrice(cartSubtotal)} ({cartCount})</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  id="menu-footer-close-btn"
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-black rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Dismiss Fullscreen Menu</span>
+                </button>
+              </div>
+            </div>
+          </footer>
         </motion.div>
       </div>
     </AnimatePresence>
