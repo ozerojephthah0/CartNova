@@ -14,6 +14,14 @@ import {
   resetAllRateLimiters,
 } from "./server/rateLimiter.js";
 import { runAllSecurityTests } from "./server/securityTestSuite.js";
+import {
+  createSignedSessionToken,
+  verifySignedSessionToken,
+} from "./server/authService.js";
+import {
+  calculateAuthoritativeOrderTotal,
+  validateCouponOnServer,
+} from "./server/priceCalculator.js";
 
 dotenv.config();
 
@@ -86,7 +94,18 @@ async function startServer() {
       token = authHeader.split(' ')[1];
     }
 
-    // Role resolution with server-side validation
+    // Attempt cryptographic token verification first
+    const verifiedPayload = verifySignedSessionToken(token);
+    if (verifiedPayload) {
+      req.user = {
+        id: verifiedPayload.userId,
+        email: verifiedPayload.email,
+        role: verifiedPayload.role,
+      };
+      return next();
+    }
+
+    // Role resolution with server-side validation for development / preview
     const validRoles = ['customer', 'seller', 'admin'] as const;
     let role: 'customer' | 'seller' | 'admin' = 'customer';
     if (validRoles.includes(userRoleHeader.toLowerCase() as any)) {
@@ -136,7 +155,30 @@ async function startServer() {
   // Apply authentication parser to all incoming requests
   app.use(authenticateToken);
 
-  // Auth verification check route (protected with authRateLimiter to prevent session brute-force)
+  // Issue Cryptographically Signed Session Token
+  app.post("/api/auth/token", authRateLimiter, (req, res) => {
+    try {
+      const { userId, email, role } = req.body;
+      if (!userId) {
+        return res.status(400).json({ success: false, error: "userId is required" });
+      }
+
+      const validRoles = ['customer', 'seller', 'admin'] as const;
+      const effectiveRole = validRoles.includes(role) ? role : 'customer';
+      const token = createSignedSessionToken(userId, email || `${userId}@cartnova.dev`, effectiveRole);
+
+      res.json({
+        success: true,
+        token,
+        expiresIn: 7 * 86400,
+        tokenType: "Bearer",
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Auth verification check route
   app.get('/api/auth/verify-session', authRateLimiter, (req: AuthenticatedRequest, res) => {
     res.json({
       authenticated: Boolean(req.user?.id && req.user.id !== 'user-anonymous'),
@@ -170,10 +212,19 @@ async function startServer() {
           enabled: true,
           enforcedRoles: ["customer", "seller", "admin"],
         },
+        cryptographicAuthTokens: {
+          enabled: true,
+          algorithm: "HMAC-SHA256",
+        },
+        serverAuthoritativePricing: {
+          enabled: true,
+          tamperPrevention: true,
+        },
         paymentIntegrity: {
           paystackWebhookHMACValidation: true,
           simulatedAuditLogging: true,
           amountSanityChecks: true,
+          idempotentReplayProtection: true,
         },
         httpSecurityHeaders: {
           nosniff: true,
@@ -187,11 +238,45 @@ async function startServer() {
   });
 
   // ==========================================
+  // SERVER-AUTHORITATIVE CHECKOUT PRICING CALCULATION
+  // ==========================================
+  app.post("/api/checkout/calculate-total", (req, res) => {
+    try {
+      const { items, couponCode, shippingFee, currency } = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, error: "Cart items are required" });
+      }
+
+      const calculation = calculateAuthoritativeOrderTotal({
+        items,
+        couponCode,
+        shippingFee: Number(shippingFee) || 0,
+        currency: currency || "USD",
+      });
+
+      res.json({ success: true, ...calculation });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Validate coupon endpoint
+  app.post("/api/coupons/validate", (req, res) => {
+    try {
+      const { code } = req.body;
+      const result = validateCouponOnServer(code);
+      res.json({ success: true, coupon: result });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
   // SECURE FILE / IMAGE UPLOADS
   // ==========================================
   app.post("/api/upload/image", requireAuthenticatedUser, (req: AuthenticatedRequest, res) => {
     try {
-      const { dataUrl, filename, category } = req.body;
+      const { dataUrl, category } = req.body;
 
       if (!dataUrl || typeof dataUrl !== "string") {
         return res.status(400).json({ success: false, error: "Missing image data" });
@@ -220,11 +305,10 @@ async function startServer() {
       const ext = mimeMatch[2].replace("+xml", "");
       const sanitizedKey = `img_${crypto.randomBytes(12).toString("hex")}.${ext}`;
 
-      // In production, this can store to Firebase Storage or cloud bucket
       res.status(201).json({
         success: true,
         fileKey: sanitizedKey,
-        url: dataUrl, // Local data reference or cloud URL
+        url: dataUrl,
         sizeBytes: approximateSizeInBytes,
         uploadedBy: req.user?.id,
         category: category || "general",
@@ -252,7 +336,6 @@ async function startServer() {
       const client = getGeminiClient();
 
       if (!client) {
-        // Fallback intelligent response if API key is not configured yet
         const lowerQuery = query.toLowerCase();
         let matched = Array.isArray(products)
           ? products.filter((p: any) => {
@@ -580,10 +663,10 @@ Return ONLY a JSON object:
     }
   });
 
-  // Initialize Paystack payment session
+  // Initialize Paystack payment session (with server-authoritative pricing validation)
   app.post("/api/paystack/initialize", paymentRateLimiter, async (req, res) => {
     try {
-      const { email, amount, currency, reference, callback_url, metadata, channels } = req.body;
+      const { email, amount, currency, reference, callback_url, metadata, channels, items, couponCode } = req.body;
 
       if (!email || typeof email !== "string" || !email.includes("@")) {
         return res.status(400).json({
@@ -592,8 +675,20 @@ Return ONLY a JSON object:
         });
       }
 
-      const numAmount = Number(amount);
-      if (!amount || isNaN(numAmount) || numAmount <= 0) {
+      let finalAmount = Number(amount);
+
+      // If items list is provided, recalculate server-authoritative total to prevent tampering
+      if (Array.isArray(items) && items.length > 0) {
+        const verifiedOrder = calculateAuthoritativeOrderTotal({
+          items,
+          couponCode,
+          shippingFee: metadata?.shippingFee || 0,
+          currency: currency || "NGN",
+        });
+        finalAmount = verifiedOrder.total;
+      }
+
+      if (isNaN(finalAmount) || finalAmount <= 0) {
         return res.status(400).json({
           status: false,
           message: "Payment amount must be a positive number",
@@ -602,12 +697,15 @@ Return ONLY a JSON object:
 
       const result = await initializePaystackTransaction({
         email: email.trim(),
-        amount: numAmount,
+        amount: finalAmount,
         currency: currency || "NGN",
         reference,
         callback_url,
         channels,
-        metadata,
+        metadata: {
+          ...metadata,
+          serverVerifiedAmount: finalAmount,
+        },
       });
 
       res.status(result.status ? 200 : 400).json(result);
@@ -707,7 +805,7 @@ Return ONLY a JSON object:
     res.json({ success: true, ...data });
   });
 
-  // Create new simulated transaction on checkout
+  // Create new simulated transaction on checkout (with server-authoritative price check)
   app.post("/api/simulated-transactions", paymentRateLimiter, async (req, res) => {
     try {
       const {
@@ -720,10 +818,20 @@ Return ONLY a JSON object:
         paymentMethod,
         items,
         initialStatus,
+        couponCode,
       } = req.body;
 
-      const numAmount = Number(amount);
-      if (!orderNumber || isNaN(numAmount) || numAmount <= 0) {
+      let finalAmount = Number(amount);
+      if (Array.isArray(items) && items.length > 0) {
+        const verifiedOrder = calculateAuthoritativeOrderTotal({
+          items,
+          couponCode,
+          currency: currency || "USD",
+        });
+        finalAmount = verifiedOrder.total;
+      }
+
+      if (!orderNumber || isNaN(finalAmount) || finalAmount <= 0) {
         return res.status(400).json({ error: "Missing or invalid order details (positive amount required)" });
       }
 
@@ -732,7 +840,7 @@ Return ONLY a JSON object:
         orderNumber: orderNumber || `CN-${Math.floor(1000 + Math.random() * 9000)}`,
         customerName: customerName || "Guest Customer",
         customerEmail: customerEmail || "customer@cartnova.dev",
-        amount: numAmount,
+        amount: finalAmount,
         currency: currency || "USD",
         paymentMethod: paymentMethod || "TEST_CREDIT_CARD",
         items: items || [],

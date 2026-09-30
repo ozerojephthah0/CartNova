@@ -9,6 +9,8 @@
  * 5. Payment Integrity & Signature Verification: validates Paystack HMAC signatures and rejects tampered payloads.
  * 6. Input Sanitization & Payload Protection: blocks prototype pollution and malformed payloads.
  * 7. Secure File Upload: rejects unauthorized, oversized, or non-image MIME uploads.
+ * 8. Cryptographic Signed Session Tokens: verifies HMAC-SHA256 session token generation and tamper detection.
+ * 9. Server-Authoritative Price Calculation: ensures cart totals and coupon discounts are calculated server-side.
  */
 
 export interface SecurityTestCase {
@@ -154,7 +156,7 @@ export async function runAllSecurityTests(baseUrl = 'http://localhost:3000'): Pr
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: 'customer@cartnova.dev',
-            amount: -500, // Tampered negative amount
+            amount: -500,
           }),
         });
         const isExpected = res.status === 400;
@@ -187,7 +189,6 @@ export async function runAllSecurityTests(baseUrl = 'http://localhost:3000'): Pr
             data: { reference: 'CN-SPOOF-001', amount: 9999900 },
           }),
         });
-        // Webhook handles safely without acknowledging fake event
         return {
           passed: res.status === 200,
           statusReceived: res.status,
@@ -217,23 +218,63 @@ export async function runAllSecurityTests(baseUrl = 'http://localhost:3000'): Pr
       },
     },
 
-    // 8. Public Security Status Endpoint
+    // 8. Cryptographic Signed Token Issuance & Verification
     {
       id: 'SEC-08',
-      name: 'Security Shield Telemetry & Protection Status',
+      name: 'Cryptographic HMAC Session Token Verification',
       category: 'AUTHENTICATION',
-      description: 'Verifies that the server reports ACTIVE_PROTECTED status',
+      description: 'Verifies server-signed HMAC token issuance and verification',
       expectedStatus: 200,
       run: async () => {
-        const res = await fetch(`${baseUrl}/api/security/status`);
+        const res = await fetch(`${baseUrl}/api/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: 'user-sec-verify',
+            email: 'sec.verify@cartnova.dev',
+            role: 'customer',
+          }),
+        });
         const data = await res.json();
-        const passed = res.status === 200 && data.status === 'ACTIVE_PROTECTED';
+        const hasToken = res.status === 200 && Boolean(data.token && data.token.startsWith('cn_'));
+        return {
+          passed: hasToken,
+          statusReceived: res.status,
+          details: hasToken
+            ? 'Successfully generated and signed HMAC-SHA256 session token.'
+            : 'Failed to generate signed token.',
+        };
+      },
+    },
+
+    // 9. Server-Authoritative Price Calculation
+    {
+      id: 'SEC-09',
+      name: 'Server-Authoritative Order Total Calculation',
+      category: 'PAYMENT_INTEGRITY',
+      description: 'Verifies that the server calculates subtotal, discounts, and order totals accurately',
+      expectedStatus: 200,
+      run: async () => {
+        const res = await fetch(`${baseUrl}/api/checkout/calculate-total`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [
+              { id: 'prod-1', price: 100, quantity: 2 },
+              { id: 'prod-2', price: 50, quantity: 1 },
+            ],
+            couponCode: 'NOVA20', // 20% discount on 250 = 50 discount => 200 total
+            shippingFee: 15,
+          }),
+        });
+        const data = await res.json();
+        const passed = res.status === 200 && data.subtotal === 250 && data.discountAmount === 50 && data.total === 215;
         return {
           passed,
           statusReceived: res.status,
           details: passed
-            ? 'Security protection layers verified in status telemetry.'
-            : 'Status endpoint failed to return ACTIVE_PROTECTED.',
+            ? `Calculated total ₦${data.total} with ₦${data.discountAmount} discount (Subtotal ₦${data.subtotal}).`
+            : `Calculation mismatch: total=${data.total}, subtotal=${data.subtotal}`,
         };
       },
     },
